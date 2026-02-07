@@ -184,6 +184,21 @@ final class PromptHistoryStore: ObservableObject {
 }
 
 private func startGeneration(prompt: String, generation: GenerationContext, historyStore: HistoryStore) {
+    startGeneration(prompt: prompt, generation: generation, historyStore: historyStore, baseSeed: nil, baseImage: nil, forceSeed: nil)
+}
+
+private func loadCGImage(from fileURL: URL) -> CGImage? {
+    UIImage(contentsOfFile: fileURL.path)?.cgImage
+}
+
+private func startGeneration(
+    prompt: String,
+    generation: GenerationContext,
+    historyStore: HistoryStore,
+    baseSeed: UInt32?,
+    baseImage: CGImage?,
+    forceSeed: UInt32?
+) {
     if case .running = generation.state { return }
 
     let promptToUse = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -194,8 +209,14 @@ private func startGeneration(prompt: String, generation: GenerationContext, hist
     Task {
         generation.state = .running(nil)
         do {
-            let result = try await generation.generate()
+            let result = try await generation.generate(
+                prompt: promptToUse,
+                baseSeed: baseSeed,
+                baseImage: baseImage,
+                forceSeed: forceSeed
+            )
             generation.state = .complete(promptToUse, result.image, result.lastSeed, result.interval)
+            generation.updateVariationBase(seed: result.lastSeed, image: result.image)
             if let image = result.image {
                 historyStore.save(image: image, prompt: promptToUse, seed: result.lastSeed)
             }
@@ -246,7 +267,7 @@ struct HistoryImageCard: View {
 struct HistoryImageDetailView: View {
     let item: HistoryItem
     var isGenerating: Bool
-    var onRegenerate: (String) -> Void
+    var onRegenerate: (HistoryItem) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var showSavedMessage = false
@@ -329,7 +350,7 @@ struct HistoryImageDetailView: View {
                         .tint(.blue)
 
                         Button {
-                            onRegenerate(item.prompt)
+                            onRegenerate(item)
                             dismiss()
                         } label: {
                             Label("Regenerate", systemImage: "arrow.triangle.2.circlepath")
@@ -402,9 +423,19 @@ struct HistoryGalleryView: View {
                 HistoryImageDetailView(
                     item: item,
                     isGenerating: isGenerating,
-                    onRegenerate: { prompt in
+                    onRegenerate: { selectedItem in
                         selectedTab = .generation
-                        startGeneration(prompt: prompt, generation: generation, historyStore: historyStore)
+                        generation.variationAmount = 0
+                        let baseImage = loadCGImage(from: selectedItem.fileURL)
+                        generation.updateVariationBase(seed: selectedItem.seed, image: baseImage)
+                        startGeneration(
+                            prompt: selectedItem.prompt,
+                            generation: generation,
+                            historyStore: historyStore,
+                            baseSeed: selectedItem.seed,
+                            baseImage: baseImage,
+                            forceSeed: selectedItem.seed
+                        )
                     }
                 )
             }
@@ -527,6 +558,25 @@ struct GenerationView: View {
         Array(promptHistoryStore.prompts.prefix(8))
     }
 
+    private var hasVariationSource: Bool {
+        generation.variationBaseSeed != nil && generation.variationBaseImage != nil
+    }
+
+    private var variationValueText: String {
+        String(format: "%.2f", generation.variationAmount)
+    }
+
+    private var variationDescription: String {
+        let value = generation.variationAmount
+        if value <= 0.0001 {
+            return "0.00 regenerates from the source seed."
+        }
+        if value >= 0.9999 {
+            return "1.00 starts from independent noise."
+        }
+        return "Values between 0 and 1 create controlled variations."
+    }
+
     private func dismissKeyboard() {
         promptFieldFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
@@ -591,6 +641,29 @@ struct GenerationView: View {
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 18)
                                 .allowsHitTesting(false)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Variation")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text(variationValueText)
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundColor(.secondary)
+                        }
+
+                        Slider(value: $generation.variationAmount, in: 0...1)
+
+                        Text(variationDescription)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        if generation.variationAmount < 1 && !hasVariationSource {
+                            Text("Generate an image first or pick one from History to use as a source.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
 

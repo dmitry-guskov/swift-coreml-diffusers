@@ -79,7 +79,9 @@ class Pipeline {
         seed: UInt32 = 0,
         numPreviews previewCount: Int = 5,
         guidanceScale: Float = 7.5,
-        disableSafety: Bool = false
+        disableSafety: Bool = false,
+        startingImage: CGImage? = nil,
+        strength: Float? = nil
     ) throws -> GenerationResult {
         let beginDate = Date()
         canceled = false
@@ -95,6 +97,10 @@ class Pipeline {
         config.disableSafety = disableSafety
         config.schedulerType = scheduler.asStableDiffusionScheduler()
         config.useDenoisedIntermediates = true
+        config.startingImage = startingImage
+        if let strength {
+            config.strength = max(0, min(1, strength))
+        }
         if isXL {
             config.encoderScaleFactor = 0.13025
             config.decoderScaleFactor = 0.13025

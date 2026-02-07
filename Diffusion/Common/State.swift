@@ -72,6 +72,9 @@ class GenerationContext: ObservableObject {
     @Published var previews: Double = runningOnMac ? Settings.shared.previewCount : 0.0
     @Published var disableSafety = false
     @Published var previewImage: CGImage? = nil
+    @Published var variationAmount: Double = 1.0
+    @Published var variationBaseSeed: UInt32? = nil
+    @Published var variationBaseImage: CGImage? = nil
 
     @Published var computeUnits: ComputeUnits = Settings.shared.userSelectedComputeUnits ?? ModelInfo.defaultComputeUnits
 
@@ -87,17 +90,68 @@ class GenerationContext: ObservableObject {
         }
     }
 
-    func generate() async throws -> GenerationResult {
+    private func blendedSeed(previous: UInt32, fresh: UInt32, amount: Double) -> UInt32 {
+        let clamped = max(0, min(1, amount))
+        let previousValue = Double(previous)
+        let freshValue = Double(fresh)
+        let mixed = ((1.0 - clamped) * previousValue) + (clamped * freshValue)
+        let bounded = max(1.0, min(Double(UInt32.max), mixed.rounded()))
+        return UInt32(bounded)
+    }
+
+    func updateVariationBase(seed: UInt32, image: CGImage?) {
+        variationBaseSeed = seed
+        variationBaseImage = image
+    }
+
+    func generate(
+        prompt overridePrompt: String? = nil,
+        baseSeed: UInt32? = nil,
+        baseImage: CGImage? = nil,
+        forceSeed: UInt32? = nil
+    ) async throws -> GenerationResult {
         guard let pipeline = pipeline else { throw "No pipeline" }
+        let variation = max(0, min(1, variationAmount))
+        let sourceSeed = baseSeed ?? variationBaseSeed
+        let sourceImage = baseImage ?? variationBaseImage
+        let configuredSeed = forceSeed ?? seed
+
+        var generationSeed = configuredSeed
+        var startingImage: CGImage? = nil
+        var strength: Float? = nil
+
+        if variation <= 0 {
+            if let sourceSeed {
+                generationSeed = sourceSeed
+            }
+        } else if variation < 1 {
+            if let sourceSeed {
+                let freshSeed: UInt32
+                if configuredSeed > 0 {
+                    freshSeed = configuredSeed
+                } else {
+                    freshSeed = UInt32.random(in: 1...UInt32.max)
+                }
+                generationSeed = blendedSeed(previous: sourceSeed, fresh: freshSeed, amount: variation)
+            }
+
+            if let sourceImage {
+                startingImage = sourceImage
+                strength = Float(variation)
+            }
+        }
+
         return try pipeline.generate(
-            prompt: positivePrompt,
+            prompt: overridePrompt ?? positivePrompt,
             negativePrompt: negativePrompt,
             scheduler: scheduler,
             numInferenceSteps: Int(steps),
-            seed: seed,
+            seed: generationSeed,
             numPreviews: Int(previews),
             guidanceScale: Float(guidanceScale),
-            disableSafety: disableSafety
+            disableSafety: disableSafety,
+            startingImage: startingImage,
+            strength: strength
         )
     }
     
