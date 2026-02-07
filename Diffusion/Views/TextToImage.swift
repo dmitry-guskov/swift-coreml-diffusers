@@ -18,6 +18,17 @@ struct HistoryItem: Identifiable {
     let createdAt: Date
 }
 
+private struct HistoryMetadata: Codable {
+    let prompt: String
+    let seed: UInt32
+    let createdAt: Date
+}
+
+enum HomeTab: Hashable {
+    case generation
+    case history
+}
+
 final class HistoryStore: ObservableObject {
     @Published private(set) var items: [HistoryItem] = []
 
@@ -47,6 +58,18 @@ final class HistoryStore: ObservableObject {
         return directoryURL
     }
 
+    private func metadataURL(for imageURL: URL) -> URL {
+        imageURL.deletingPathExtension().appendingPathExtension("json")
+    }
+
+    private func loadMetadata(for imageURL: URL) -> HistoryMetadata? {
+        let sidecarURL = metadataURL(for: imageURL)
+        guard let data = try? Data(contentsOf: sidecarURL) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(HistoryMetadata.self, from: data)
+    }
+
     private func parseMetadata(from filename: String) -> (date: Date?, seed: UInt32, prompt: String) {
         guard let firstSeparator = filename.range(of: "__"),
               let secondSeparator = filename.range(of: "__", range: firstSeparator.upperBound..<filename.endIndex)
@@ -63,15 +86,23 @@ final class HistoryStore: ObservableObject {
     private func item(from fileURL: URL) -> HistoryItem {
         let name = fileURL.deletingPathExtension().lastPathComponent
         let metadata = parseMetadata(from: name)
+        let sidecarMetadata = loadMetadata(for: fileURL)
         let fileDate = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
-        let createdAt = metadata.date ?? fileDate ?? .distantPast
-        let prompt = metadata.prompt.isEmpty ? "Generated image" : metadata.prompt.replacingOccurrences(of: "_", with: " ")
+        let createdAt = sidecarMetadata?.createdAt ?? metadata.date ?? fileDate ?? .distantPast
+        let prompt: String
+        if let exactPrompt = sidecarMetadata?.prompt, !exactPrompt.isEmpty {
+            prompt = exactPrompt
+        } else {
+            let parsedPrompt = metadata.prompt.replacingOccurrences(of: "_", with: " ")
+            prompt = parsedPrompt.isEmpty ? "Generated image" : parsedPrompt
+        }
+        let seed = sidecarMetadata?.seed ?? metadata.seed
 
         return HistoryItem(
             id: name,
             fileURL: fileURL,
             prompt: prompt,
-            seed: metadata.seed,
+            seed: seed,
             createdAt: createdAt
         )
     }
@@ -114,6 +145,11 @@ final class HistoryStore: ObservableObject {
 
         do {
             try imageData.write(to: fileURL, options: .atomic)
+            let sidecarURL = metadataURL(for: fileURL)
+            let metadata = HistoryMetadata(prompt: prompt, seed: seed, createdAt: Date())
+            if let metadataData = try? JSONEncoder().encode(metadata) {
+                try? metadataData.write(to: sidecarURL, options: .atomic)
+            }
             reload()
         } catch {
             print("Error saving generated image history: \(error)")
@@ -121,29 +157,25 @@ final class HistoryStore: ObservableObject {
     }
 }
 
-final class PromptHistoryStore: ObservableObject {
-    @Published private(set) var prompts: [String] = []
+private func startGeneration(prompt: String, generation: GenerationContext, historyStore: HistoryStore) {
+    if case .running = generation.state { return }
 
-    private let defaults = UserDefaults.standard
-    private let key = "recent_prompt_history_v1"
-    private let maxCount = 20
+    let promptToUse = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !promptToUse.isEmpty else { return }
 
-    init() {
-        prompts = defaults.stringArray(forKey: key) ?? []
-    }
+    generation.positivePrompt = promptToUse
 
-    func record(_ prompt: String) {
-        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        prompts.removeAll { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
-        prompts.insert(trimmed, at: 0)
-
-        if prompts.count > maxCount {
-            prompts = Array(prompts.prefix(maxCount))
+    Task {
+        generation.state = .running(nil)
+        do {
+            let result = try await generation.generate()
+            generation.state = .complete(promptToUse, result.image, result.lastSeed, result.interval)
+            if let image = result.image {
+                historyStore.save(image: image, prompt: promptToUse, seed: result.lastSeed)
+            }
+        } catch {
+            generation.state = .failed(error)
         }
-
-        defaults.set(prompts, forKey: key)
     }
 }
 
@@ -185,10 +217,125 @@ struct HistoryImageCard: View {
     }
 }
 
+struct HistoryImageDetailView: View {
+    let item: HistoryItem
+    var isGenerating: Bool
+    var onRegenerate: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var showSavedMessage = false
+
+    private var image: UIImage? {
+        UIImage(contentsOfFile: item.fileURL.path)
+    }
+
+    private func saveToPhotos() {
+        guard let image = image else { return }
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showSavedMessage = true
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    Spacer()
+                    if showSavedMessage {
+                        Text("Saved")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.white.opacity(0.18), in: Capsule())
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                Group {
+                    if let image = image {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                    } else {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.white.opacity(0.12))
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(.white.opacity(0.75))
+                            )
+                    }
+                }
+                .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(item.prompt)
+                        .font(.body)
+                        .foregroundStyle(.white)
+                    Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.8))
+                    Text("Seed \(item.seed)")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.8))
+
+                    HStack(spacing: 10) {
+                        Button {
+                            saveToPhotos()
+                        } label: {
+                            Label("Save", systemImage: "square.and.arrow.down")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+
+                        Button {
+                            onRegenerate(item.prompt)
+                            dismiss()
+                        } label: {
+                            Label("Regenerate", systemImage: "arrow.triangle.2.circlepath")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isGenerating)
+                    }
+                }
+                .padding()
+                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+            }
+        }
+    }
+}
+
 struct HistoryGalleryView: View {
     @EnvironmentObject var historyStore: HistoryStore
+    @EnvironmentObject var generation: GenerationContext
+    @Binding var selectedTab: HomeTab
+    @State private var selectedItem: HistoryItem?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
+
+    private var isGenerating: Bool {
+        if case .running = generation.state {
+            return true
+        }
+        return false
+    }
 
     var body: some View {
         NavigationView {
@@ -209,7 +356,12 @@ struct HistoryGalleryView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 12) {
                             ForEach(historyStore.items) { item in
-                                HistoryImageCard(item: item)
+                                Button {
+                                    selectedItem = item
+                                } label: {
+                                    HistoryImageCard(item: item)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                         .padding()
@@ -219,6 +371,16 @@ struct HistoryGalleryView: View {
             .navigationTitle("History")
             .onAppear {
                 historyStore.reload()
+            }
+            .fullScreenCover(item: $selectedItem) { item in
+                HistoryImageDetailView(
+                    item: item,
+                    isGenerating: isGenerating,
+                    onRegenerate: { prompt in
+                        selectedTab = .generation
+                        startGeneration(prompt: prompt, generation: generation, historyStore: historyStore)
+                    }
+                )
             }
         }
     }
@@ -321,169 +483,39 @@ struct ImageWithPlaceholder: View {
 struct GenerationView: View {
     @EnvironmentObject var generation: GenerationContext
     @EnvironmentObject var historyStore: HistoryStore
-    @EnvironmentObject var promptHistoryStore: PromptHistoryStore
-    @FocusState private var promptFieldFocused: Bool
-
-    private var isRunning: Bool {
-        if case .running = generation.state {
-            return true
-        }
-        return false
-    }
-
-    private var promptIsValid: Bool {
-        !generation.positivePrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var recentPrompts: [String] {
-        Array(promptHistoryStore.prompts.prefix(8))
-    }
 
     private func dismissKeyboard() {
-        promptFieldFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
-    private func usePrompt(_ prompt: String) {
-        generation.positivePrompt = prompt
-        Settings.shared.prompt = prompt
-        dismissKeyboard()
-    }
-
-    private func submit(prompt overridePrompt: String? = nil) {
-        if case .running = generation.state { return }
-        let finalPrompt = (overridePrompt ?? generation.positivePrompt).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !finalPrompt.isEmpty else { return }
-
-        generation.positivePrompt = finalPrompt
-        Settings.shared.prompt = finalPrompt
-        promptHistoryStore.record(finalPrompt)
-        dismissKeyboard()
-
-        Task {
-            generation.state = .running(nil)
-            do {
-                let result = try await generation.generate()
-                generation.state = .complete(generation.positivePrompt, result.image, result.lastSeed, result.interval)
-                if let image = result.image {
-                    historyStore.save(image: image, prompt: generation.positivePrompt, seed: result.lastSeed)
-                }
-            } catch {
-                generation.state = .failed(error)
-            }
-        }
-    }
-
-    private func repeatPrompt(_ prompt: String) {
-        usePrompt(prompt)
-        submit(prompt: prompt)
+    func submit() {
+        startGeneration(prompt: generation.positivePrompt, generation: generation, historyStore: historyStore)
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                ImageWithPlaceholder(state: $generation.state)
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
+        VStack {
+            ImageWithPlaceholder(state: $generation.state)
+                .scaledToFit()
 
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Prompt")
-                            .font(.headline)
-                        Spacer()
-                        Button {
-                            dismissKeyboard()
-                        } label: {
-                            Label("Done", systemImage: "keyboard.chevron.compact.down")
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    ZStack(alignment: .topLeading) {
-                        TextEditor(text: $generation.positivePrompt)
-                            .focused($promptFieldFocused)
-                            .frame(minHeight: 120)
-                            .padding(8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .strokeBorder(Color.secondary.opacity(0.35), lineWidth: 1)
-                            )
-
-                        if generation.positivePrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Text("Describe what you want to generate...")
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 18)
-                                .allowsHitTesting(false)
-                        }
-                    }
-
-                    HStack {
-                        Button("Clear") {
-                            generation.positivePrompt = ""
-                            Settings.shared.prompt = ""
-                        }
-                        .buttonStyle(.bordered)
-
-                        Spacer()
-
-                        Button {
-                            submit()
-                        } label: {
-                            Label(isRunning ? "Generating..." : "Generate", systemImage: "sparkles")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isRunning || !promptIsValid)
-                    }
-                }
-
-                if !recentPrompts.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Recent Prompts")
-                            .font(.headline)
-
-                        ForEach(recentPrompts, id: \.self) { prompt in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(prompt)
-                                    .font(.subheadline)
-                                    .lineLimit(3)
-
-                                HStack {
-                                    Button("Use") {
-                                        usePrompt(prompt)
-                                    }
-                                    .buttonStyle(.bordered)
-
-                                    Button {
-                                        repeatPrompt(prompt)
-                                    } label: {
-                                        Label("Repeat", systemImage: "arrow.clockwise")
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .disabled(isRunning)
-                                }
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        }
-                    }
-                }
-            }
-            .padding()
-        }
-        .onChange(of: generation.positivePrompt) { newPrompt in
-            Settings.shared.prompt = newPrompt
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
+            HStack {
+                PromptTextField(text: $generation.positivePrompt, isPositivePrompt: true, model: iosModel().modelVersion)
+                Button("Generate") {
                     dismissKeyboard()
+                    submit()
                 }
+                .padding()
+                .buttonStyle(.borderedProminent)
+                Button {
+                    dismissKeyboard()
+                } label: {
+                    Image(systemName: "keyboard.chevron.compact.down")
+                }
+                .padding(.trailing, 4)
+                .buttonStyle(.bordered)
             }
+            Spacer()
         }
+        .padding()
         .environmentObject(generation)
     }
 }
@@ -491,21 +523,22 @@ struct GenerationView: View {
 struct TextToImage: View {
     @EnvironmentObject var generation: GenerationContext
     @StateObject private var historyStore = HistoryStore()
-    @StateObject private var promptHistoryStore = PromptHistoryStore()
+    @State private var selectedTab: HomeTab = .generation
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             GenerationView()
                 .tabItem {
                     Label("Generation", systemImage: "wand.and.stars")
                 }
-            HistoryGalleryView()
+                .tag(HomeTab.generation)
+            HistoryGalleryView(selectedTab: $selectedTab)
                 .tabItem {
                     Label("History", systemImage: "clock.arrow.circlepath")
                 }
+                .tag(HomeTab.history)
         }
         .environmentObject(generation)
         .environmentObject(historyStore)
-        .environmentObject(promptHistoryStore)
     }
 }
