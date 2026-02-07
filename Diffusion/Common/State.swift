@@ -135,7 +135,7 @@ class GenerationContext: ObservableObject {
                 generationSeed = blendedSeed(previous: sourceSeed, fresh: freshSeed, amount: variation)
             }
 
-            if let sourceImage {
+            if pipeline.supportsImageToImage, let sourceImage {
                 startingImage = sourceImage
                 strength = Float(variation)
             }
