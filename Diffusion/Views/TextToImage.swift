@@ -10,6 +10,193 @@ import SwiftUI
 import Combine
 import StableDiffusion
 
+struct HistoryItem: Identifiable {
+    let id: String
+    let fileURL: URL
+    let prompt: String
+    let seed: UInt32
+    let createdAt: Date
+}
+
+final class HistoryStore: ObservableObject {
+    @Published private(set) var items: [HistoryItem] = []
+
+    private let fileManager = FileManager.default
+
+    private static let filenameDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyyMMdd-HHmmssSSS"
+        return formatter
+    }()
+
+    init() {
+        reload()
+    }
+
+    private func historyDirectoryURL() -> URL {
+        let directoryURL = Settings.shared.applicationSupportURL().appendingPathComponent("hf-diffusion-history")
+        if !fileManager.fileExists(atPath: directoryURL.path) {
+            do {
+                try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+            } catch {
+                print("Error creating history directory: \(error)")
+            }
+        }
+        return directoryURL
+    }
+
+    private func parseMetadata(from filename: String) -> (date: Date?, seed: UInt32, prompt: String) {
+        guard let firstSeparator = filename.range(of: "__"),
+              let secondSeparator = filename.range(of: "__", range: firstSeparator.upperBound..<filename.endIndex)
+        else {
+            return (nil, 0, filename)
+        }
+
+        let dateToken = String(filename[..<firstSeparator.lowerBound])
+        let seedToken = String(filename[firstSeparator.upperBound..<secondSeparator.lowerBound])
+        let promptToken = String(filename[secondSeparator.upperBound...])
+        return (Self.filenameDateFormatter.date(from: dateToken), UInt32(seedToken) ?? 0, promptToken)
+    }
+
+    private func item(from fileURL: URL) -> HistoryItem {
+        let name = fileURL.deletingPathExtension().lastPathComponent
+        let metadata = parseMetadata(from: name)
+        let fileDate = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+        let createdAt = metadata.date ?? fileDate ?? .distantPast
+        let prompt = metadata.prompt.isEmpty ? "Generated image" : metadata.prompt.replacingOccurrences(of: "_", with: " ")
+
+        return HistoryItem(
+            id: name,
+            fileURL: fileURL,
+            prompt: prompt,
+            seed: metadata.seed,
+            createdAt: createdAt
+        )
+    }
+
+    private func updateItemsOnMain(_ newItems: [HistoryItem]) {
+        if Thread.isMainThread {
+            self.items = newItems
+        } else {
+            DispatchQueue.main.async {
+                self.items = newItems
+            }
+        }
+    }
+
+    func reload() {
+        let directoryURL = historyDirectoryURL()
+        let imageURLs = (try? fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+
+        let loadedItems = imageURLs
+            .filter { $0.pathExtension.lowercased() == "png" }
+            .map(item(from:))
+            .sorted(by: { $0.createdAt > $1.createdAt })
+
+        updateItemsOnMain(loadedItems)
+    }
+
+    func save(image: CGImage, prompt: String, seed: UInt32) {
+        let directoryURL = historyDirectoryURL()
+        let timestamp = Self.filenameDateFormatter.string(from: Date())
+        let filename = "\(timestamp)__\(seed)__\(prompt.first200Safe).png"
+        let fileURL = directoryURL.appendingPathComponent(filename)
+
+        guard let imageData = UIImage(cgImage: image).pngData() else {
+            return
+        }
+
+        do {
+            try imageData.write(to: fileURL, options: .atomic)
+            reload()
+        } catch {
+            print("Error saving generated image history: \(error)")
+        }
+    }
+}
+
+struct HistoryImageCard: View {
+    let item: HistoryItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let image = UIImage(contentsOfFile: item.fileURL.path) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 140)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.gray.opacity(0.15))
+                    .frame(height: 140)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .foregroundColor(.secondary)
+                    )
+            }
+
+            Text(item.prompt)
+                .font(.caption)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            Text("Seed \(item.seed)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(8)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct HistoryGalleryView: View {
+    @EnvironmentObject var historyStore: HistoryStore
+
+    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if historyStore.items.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "photo.stack")
+                            .font(.system(size: 36))
+                            .foregroundColor(.secondary)
+                        Text("No generated images yet")
+                            .font(.headline)
+                        Text("Generate an image and it will appear here.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            ForEach(historyStore.items) { item in
+                                HistoryImageCard(item: item)
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle("History")
+            .onAppear {
+                historyStore.reload()
+            }
+        }
+    }
+}
 
 /// Presents "Share" + "Save" buttons on Mac; just "Share" on iOS/iPadOS.
 /// This is because I didn't find a way for "Share" to show a Save option when running on macOS.
@@ -105,8 +292,9 @@ struct ImageWithPlaceholder: View {
     }
 }
 
-struct TextToImage: View {
+struct GenerationView: View {
     @EnvironmentObject var generation: GenerationContext
+    @EnvironmentObject var historyStore: HistoryStore
 
     func submit() {
         if case .running = generation.state { return }
@@ -115,6 +303,9 @@ struct TextToImage: View {
             do {
                 let result = try await generation.generate()
                 generation.state = .complete(generation.positivePrompt, result.image, result.lastSeed, result.interval)
+                if let image = result.image {
+                    historyStore.save(image: image, prompt: generation.positivePrompt, seed: result.lastSeed)
+                }
             } catch {
                 generation.state = .failed(error)
             }
@@ -137,5 +328,25 @@ struct TextToImage: View {
         }
         .padding()
         .environmentObject(generation)
+    }
+}
+
+struct TextToImage: View {
+    @EnvironmentObject var generation: GenerationContext
+    @StateObject private var historyStore = HistoryStore()
+
+    var body: some View {
+        TabView {
+            GenerationView()
+                .tabItem {
+                    Label("Generation", systemImage: "wand.and.stars")
+                }
+            HistoryGalleryView()
+                .tabItem {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                }
+        }
+        .environmentObject(generation)
+        .environmentObject(historyStore)
     }
 }
