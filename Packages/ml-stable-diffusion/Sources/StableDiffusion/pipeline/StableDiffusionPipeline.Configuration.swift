@@ -34,6 +34,17 @@ public struct PipelineConfiguration: Hashable {
     public var stepCount: Int = 50
     /// Random seed which to start generation
     public var seed: UInt32 = 0
+    /// Optional explicit initial noise tensor serialized as Float32 data.
+    /// If provided with `initialNoiseShape`, this is used directly as initial latent noise.
+    public var initialNoiseData: Data? = nil
+    /// Shape for `initialNoiseData`.
+    public var initialNoiseShape: [Int]? = nil
+    /// Optional base noise tensor serialized as Float32 data for interpolation.
+    /// If provided with `interpolationBaseNoiseShape` and `interpolationAmount` in (0, 1),
+    /// this base tensor is interpolated with the newly sampled noise from `seed`.
+    public var interpolationBaseNoiseData: Data? = nil
+    /// Shape for `interpolationBaseNoiseData`.
+    public var interpolationBaseNoiseShape: [Int]? = nil
     /// Optional seed for interpolating initial latent noise with `seed`.
     public var interpolationSeed: UInt32? = nil
     /// Interpolation factor for initial latent noise in [0, 1].

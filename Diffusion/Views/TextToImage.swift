@@ -16,12 +16,16 @@ struct HistoryItem: Identifiable {
     let prompt: String
     let seed: UInt32
     let createdAt: Date
+    let noiseURL: URL?
+    let noiseShape: [Int]?
 }
 
 private struct HistoryMetadata: Codable {
     let prompt: String
     let seed: UInt32
     let createdAt: Date
+    let noiseFilename: String?
+    let noiseShape: [Int]?
 }
 
 enum HomeTab: Hashable {
@@ -62,6 +66,10 @@ final class HistoryStore: ObservableObject {
         imageURL.deletingPathExtension().appendingPathExtension("json")
     }
 
+    private func noiseURL(for imageURL: URL) -> URL {
+        imageURL.deletingPathExtension().appendingPathExtension("noise")
+    }
+
     private func loadMetadata(for imageURL: URL) -> HistoryMetadata? {
         let sidecarURL = metadataURL(for: imageURL)
         guard let data = try? Data(contentsOf: sidecarURL) else {
@@ -97,13 +105,22 @@ final class HistoryStore: ObservableObject {
             prompt = parsedPrompt.isEmpty ? "Generated image" : parsedPrompt
         }
         let seed = sidecarMetadata?.seed ?? metadata.seed
+        let savedNoiseURL: URL?
+        if let noiseFilename = sidecarMetadata?.noiseFilename {
+            savedNoiseURL = fileURL.deletingLastPathComponent().appendingPathComponent(noiseFilename)
+        } else {
+            let legacyNoiseURL = noiseURL(for: fileURL)
+            savedNoiseURL = fileManager.fileExists(atPath: legacyNoiseURL.path) ? legacyNoiseURL : nil
+        }
 
         return HistoryItem(
             id: name,
             fileURL: fileURL,
             prompt: prompt,
             seed: seed,
-            createdAt: createdAt
+            createdAt: createdAt,
+            noiseURL: savedNoiseURL,
+            noiseShape: sidecarMetadata?.noiseShape
         )
     }
 
@@ -133,7 +150,23 @@ final class HistoryStore: ObservableObject {
         updateItemsOnMain(loadedItems)
     }
 
-    func save(image: CGImage, prompt: String, seed: UInt32) {
+    func loadNoise(for item: HistoryItem) -> (data: Data, shape: [Int])? {
+        guard let noiseURL = item.noiseURL,
+              let noiseShape = item.noiseShape,
+              let noiseData = try? Data(contentsOf: noiseURL)
+        else {
+            return nil
+        }
+        return (noiseData, noiseShape)
+    }
+
+    func save(
+        image: CGImage,
+        prompt: String,
+        seed: UInt32,
+        initialNoiseData: Data?,
+        initialNoiseShape: [Int]?
+    ) {
         let directoryURL = historyDirectoryURL()
         let timestamp = Self.filenameDateFormatter.string(from: Date())
         let filename = "\(timestamp)__\(seed)__\(prompt.first200Safe).png"
@@ -145,8 +178,22 @@ final class HistoryStore: ObservableObject {
 
         do {
             try imageData.write(to: fileURL, options: .atomic)
+
+            var noiseFilename: String? = nil
+            if let initialNoiseData, let initialNoiseShape {
+                let noiseFileURL = noiseURL(for: fileURL)
+                try initialNoiseData.write(to: noiseFileURL, options: .atomic)
+                noiseFilename = noiseFileURL.lastPathComponent
+            }
+
             let sidecarURL = metadataURL(for: fileURL)
-            let metadata = HistoryMetadata(prompt: prompt, seed: seed, createdAt: Date())
+            let metadata = HistoryMetadata(
+                prompt: prompt,
+                seed: seed,
+                createdAt: Date(),
+                noiseFilename: noiseFilename,
+                noiseShape: initialNoiseShape
+            )
             if let metadataData = try? JSONEncoder().encode(metadata) {
                 try? metadataData.write(to: sidecarURL, options: .atomic)
             }
@@ -216,9 +263,20 @@ private func startGeneration(
                 forceSeed: forceSeed
             )
             generation.state = .complete(promptToUse, result.image, result.lastSeed, result.interval)
-            generation.updateVariationBase(seed: result.lastSeed, image: result.image)
+            generation.updateVariationBase(
+                seed: result.lastSeed,
+                image: result.image,
+                noiseData: result.initialNoiseData,
+                noiseShape: result.initialNoiseShape
+            )
             if let image = result.image {
-                historyStore.save(image: image, prompt: promptToUse, seed: result.lastSeed)
+                historyStore.save(
+                    image: image,
+                    prompt: promptToUse,
+                    seed: result.lastSeed,
+                    initialNoiseData: result.initialNoiseData,
+                    initialNoiseShape: result.initialNoiseShape
+                )
             }
         } catch {
             generation.state = .failed(error)
@@ -426,15 +484,14 @@ struct HistoryGalleryView: View {
                     onRegenerate: { selectedItem in
                         selectedTab = .generation
                         generation.variationAmount = 0
-                        let baseImage = loadCGImage(from: selectedItem.fileURL)
-                        generation.updateVariationBase(seed: selectedItem.seed, image: baseImage)
-                        startGeneration(
+                        let selectedImage = loadCGImage(from: selectedItem.fileURL)
+                        let savedNoise = historyStore.loadNoise(for: selectedItem)
+                        generation.loadHistorySelection(
                             prompt: selectedItem.prompt,
-                            generation: generation,
-                            historyStore: historyStore,
-                            baseSeed: selectedItem.seed,
-                            baseImage: baseImage,
-                            forceSeed: selectedItem.seed
+                            seed: selectedItem.seed,
+                            image: selectedImage,
+                            noiseData: savedNoise?.data,
+                            noiseShape: savedNoise?.shape
                         )
                     }
                 )
@@ -559,7 +616,7 @@ struct GenerationView: View {
     }
 
     private var hasVariationSource: Bool {
-        generation.variationBaseSeed != nil
+        generation.variationBaseNoiseData != nil && generation.variationBaseNoiseShape != nil
     }
 
     private var variationValueText: String {
@@ -569,12 +626,12 @@ struct GenerationView: View {
     private var variationDescription: String {
         let value = generation.variationAmount
         if value <= 0.0001 {
-            return "0.00 regenerates from the source seed."
+            return "0.00 reuses the loaded initial noise tensor."
         }
         if value >= 0.9999 {
             return "1.00 starts from independent noise."
         }
-        return "Values between 0 and 1 create controlled variations."
+        return "Values between 0 and 1 interpolate loaded and new noise."
     }
 
     private func dismissKeyboard() {

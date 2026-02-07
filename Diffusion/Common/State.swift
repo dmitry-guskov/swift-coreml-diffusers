@@ -75,6 +75,8 @@ class GenerationContext: ObservableObject {
     @Published var variationAmount: Double = 1.0
     @Published var variationBaseSeed: UInt32? = nil
     @Published var variationBaseImage: CGImage? = nil
+    @Published var variationBaseNoiseData: Data? = nil
+    @Published var variationBaseNoiseShape: [Int]? = nil
 
     @Published var computeUnits: ComputeUnits = Settings.shared.userSelectedComputeUnits ?? ModelInfo.defaultComputeUnits
 
@@ -90,9 +92,24 @@ class GenerationContext: ObservableObject {
         }
     }
 
-    func updateVariationBase(seed: UInt32, image: CGImage?) {
+    func updateVariationBase(seed: UInt32, image: CGImage?, noiseData: Data? = nil, noiseShape: [Int]? = nil) {
         variationBaseSeed = seed
         variationBaseImage = image
+        variationBaseNoiseData = noiseData
+        variationBaseNoiseShape = noiseShape
+    }
+
+    func loadHistorySelection(
+        prompt: String,
+        seed: UInt32,
+        image: CGImage?,
+        noiseData: Data?,
+        noiseShape: [Int]?
+    ) {
+        positivePrompt = prompt
+        Settings.shared.prompt = prompt
+        updateVariationBase(seed: seed, image: image, noiseData: noiseData, noiseShape: noiseShape)
+        state = .complete(prompt, image, seed, nil)
     }
 
     func generate(
@@ -104,21 +121,34 @@ class GenerationContext: ObservableObject {
         guard let pipeline = pipeline else { throw "No pipeline" }
         let variation = max(0, min(1, variationAmount))
         let sourceSeed = baseSeed ?? variationBaseSeed
+        let sourceNoiseData = variationBaseNoiseData
+        let sourceNoiseShape = variationBaseNoiseShape
         let configuredSeed = forceSeed ?? seed
 
         var generationSeed = configuredSeed
+        var initialNoiseData: Data? = nil
+        var initialNoiseShape: [Int]? = nil
+        var interpolationBaseNoiseData: Data? = nil
+        var interpolationBaseNoiseShape: [Int]? = nil
         var interpolationSeed: UInt32? = nil
         var interpolationAmount: Float? = nil
 
         if variation <= 0 {
-            if let sourceSeed {
+            if let sourceNoiseData, let sourceNoiseShape {
+                initialNoiseData = sourceNoiseData
+                initialNoiseShape = sourceNoiseShape
+            } else if let sourceSeed {
                 generationSeed = sourceSeed
             }
         } else if variation < 1 {
             if configuredSeed == 0 {
                 generationSeed = UInt32.random(in: 1...UInt32.max)
             }
-            if let sourceSeed {
+            if let sourceNoiseData, let sourceNoiseShape {
+                interpolationBaseNoiseData = sourceNoiseData
+                interpolationBaseNoiseShape = sourceNoiseShape
+                interpolationAmount = Float(variation)
+            } else if let sourceSeed {
                 interpolationSeed = sourceSeed
                 interpolationAmount = Float(variation)
             }
@@ -137,6 +167,10 @@ class GenerationContext: ObservableObject {
             disableSafety: disableSafety,
             startingImage: nil,
             strength: nil,
+            initialNoiseData: initialNoiseData,
+            initialNoiseShape: initialNoiseShape,
+            interpolationBaseNoiseData: interpolationBaseNoiseData,
+            interpolationBaseNoiseShape: interpolationBaseNoiseShape,
             interpolationSeed: interpolationSeed,
             interpolationAmount: interpolationAmount
         )

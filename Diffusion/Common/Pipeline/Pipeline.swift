@@ -37,6 +37,8 @@ struct GenerationResult {
     var interval: TimeInterval?
     var userCanceled: Bool
     var itsPerSecond: Double?
+    var initialNoiseData: Data?
+    var initialNoiseShape: [Int]?
 }
 
 class Pipeline {
@@ -85,6 +87,10 @@ class Pipeline {
         disableSafety: Bool = false,
         startingImage: CGImage? = nil,
         strength: Float? = nil,
+        initialNoiseData: Data? = nil,
+        initialNoiseShape: [Int]? = nil,
+        interpolationBaseNoiseData: Data? = nil,
+        interpolationBaseNoiseShape: [Int]? = nil,
         interpolationSeed: UInt32? = nil,
         interpolationAmount: Float? = nil
     ) throws -> GenerationResult {
@@ -106,6 +112,10 @@ class Pipeline {
         if let strength {
             config.strength = max(0, min(1, strength))
         }
+        config.initialNoiseData = initialNoiseData
+        config.initialNoiseShape = initialNoiseShape
+        config.interpolationBaseNoiseData = interpolationBaseNoiseData
+        config.interpolationBaseNoiseShape = interpolationBaseNoiseShape
         config.interpolationSeed = interpolationSeed
         if let interpolationAmount {
             config.interpolationAmount = max(0, min(1, interpolationAmount))
@@ -125,8 +135,16 @@ class Pipeline {
 
         // Evenly distribute previews based on inference steps
         let previewIndices = previewIndices(stepCount, previewCount)
+        var capturedInitialNoiseData: Data? = nil
+        var capturedInitialNoiseShape: [Int]? = nil
 
         let images = try pipeline.generateImages(configuration: config) { progress in
+            if capturedInitialNoiseData == nil, let initialNoise = progress.initialLatentSamples.first {
+                capturedInitialNoiseShape = initialNoise.shape
+                capturedInitialNoiseData = initialNoise.scalars.withUnsafeBufferPointer { buffer in
+                    Data(buffer: buffer)
+                }
+            }
             sampleTimer.stop()
             handleProgress(StableDiffusionProgress(progress: progress,
                                                    previewIndices: previewIndices),
@@ -141,7 +159,15 @@ class Pipeline {
         
         // Unwrap the 1 image we asked for, nil means safety checker triggered
         let image = images.compactMap({ $0 }).first
-        return GenerationResult(image: image, lastSeed: theSeed, interval: interval, userCanceled: canceled, itsPerSecond: 1.0/sampleTimer.median)
+        return GenerationResult(
+            image: image,
+            lastSeed: theSeed,
+            interval: interval,
+            userCanceled: canceled,
+            itsPerSecond: 1.0 / sampleTimer.median,
+            initialNoiseData: capturedInitialNoiseData,
+            initialNoiseShape: capturedInitialNoiseShape
+        )
     }
 
     func handleProgress(_ progress: StableDiffusionProgress, sampleTimer: SampleTimer) {

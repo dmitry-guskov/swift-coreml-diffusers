@@ -134,6 +134,7 @@ public struct StableDiffusion3Pipeline: StableDiffusionPipelineProtocol {
 
         // Generate random latent samples from specified seed
         var latents: [MLShapedArray<Float32>] = try generateLatentSamples(configuration: config, scheduler: scheduler[0])
+        let initialLatentSamples = latents.map { MLShapedArray(converting: $0) }
 
         // Store denoised latents from scheduler to pass into decoder
         var denoisedLatents: [MLShapedArray<Float32>] = latents.map { MLShapedArray(converting: $0) }
@@ -191,6 +192,7 @@ public struct StableDiffusion3Pipeline: StableDiffusionPipelineProtocol {
                 prompt: config.prompt,
                 step: step,
                 stepCount: timeSteps.count,
+                initialLatentSamples: initialLatentSamples,
                 currentLatentSamples: currentLatentSamples,
                 configuration: config
             )
@@ -277,31 +279,31 @@ public struct StableDiffusion3Pipeline: StableDiffusionPipelineProtocol {
                 converting: random.normalShapedArray(sampleShape, mean: 0.0, stdev: Double(stdev)))
         }
 
-        if let interpolationSeed = config.interpolationSeed,
-           let interpolationAmount = config.interpolationAmount {
+        if let explicitNoise = noiseSample(
+            from: config.initialNoiseData,
+            shape: config.initialNoiseShape,
+            expectedShape: sampleShape
+        ) {
+            samples = (0..<config.imageCount).map { _ in
+                MLShapedArray<Float32>(converting: explicitNoise)
+            }
+        } else if let interpolationAmount = config.interpolationAmount {
             let amount = min(max(interpolationAmount, 0), 1)
             if amount > 0 && amount < 1 {
-                var interpolationRandom = randomSource(from: config.rngType, seed: interpolationSeed)
-                let interpolationSamples = (0..<config.imageCount).map { _ in
-                    MLShapedArray<Float32>(
-                        converting: interpolationRandom.normalShapedArray(sampleShape, mean: 0.0, stdev: Double(stdev)))
-                }
-
-                let previousWeight = 1 - amount
-                let currentWeight = amount
-                let normalization = sqrt(previousWeight * previousWeight + currentWeight * currentWeight)
-                let safeNormalization = max(normalization, Float.ulpOfOne)
-
-                samples = zip(interpolationSamples, samples).map { previousNoise, currentNoise in
-                    MLShapedArray<Float32>(unsafeUninitializedShape: currentNoise.shape) { result, _ in
-                        previousNoise.withUnsafeShapedBufferPointer { previousScalars, _, _ in
-                            currentNoise.withUnsafeShapedBufferPointer { currentScalars, _, _ in
-                                for i in 0..<result.count {
-                                    let mixed = (previousWeight * previousScalars[i]) + (currentWeight * currentScalars[i])
-                                    result.initializeElement(at: i, to: mixed / safeNormalization)
-                                }
-                            }
-                        }
+                if let baseNoise = noiseSample(
+                    from: config.interpolationBaseNoiseData,
+                    shape: config.interpolationBaseNoiseShape,
+                    expectedShape: sampleShape
+                ) {
+                    samples = samples.map { blendedNoise(baseNoise, $0, amount: amount) }
+                } else if let interpolationSeed = config.interpolationSeed {
+                    var interpolationRandom = randomSource(from: config.rngType, seed: interpolationSeed)
+                    let interpolationSamples = (0..<config.imageCount).map { _ in
+                        MLShapedArray<Float32>(
+                            converting: interpolationRandom.normalShapedArray(sampleShape, mean: 0.0, stdev: Double(stdev)))
+                    }
+                    samples = zip(interpolationSamples, samples).map {
+                        blendedNoise($0, $1, amount: amount)
                     }
                 }
             }
