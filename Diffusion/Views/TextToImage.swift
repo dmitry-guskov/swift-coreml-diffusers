@@ -157,6 +157,32 @@ final class HistoryStore: ObservableObject {
     }
 }
 
+final class PromptHistoryStore: ObservableObject {
+    @Published private(set) var prompts: [String] = []
+
+    private let defaults = UserDefaults.standard
+    private let key = "recent_prompt_history_v1"
+    private let maxCount = 20
+
+    init() {
+        prompts = defaults.stringArray(forKey: key) ?? []
+    }
+
+    func record(_ prompt: String) {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        prompts.removeAll { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
+        prompts.insert(trimmed, at: 0)
+
+        if prompts.count > maxCount {
+            prompts = Array(prompts.prefix(maxCount))
+        }
+
+        defaults.set(prompts, forKey: key)
+    }
+}
+
 private func startGeneration(prompt: String, generation: GenerationContext, historyStore: HistoryStore) {
     if case .running = generation.state { return }
 
@@ -483,39 +509,157 @@ struct ImageWithPlaceholder: View {
 struct GenerationView: View {
     @EnvironmentObject var generation: GenerationContext
     @EnvironmentObject var historyStore: HistoryStore
+    @EnvironmentObject var promptHistoryStore: PromptHistoryStore
+    @FocusState private var promptFieldFocused: Bool
+
+    private var isRunning: Bool {
+        if case .running = generation.state {
+            return true
+        }
+        return false
+    }
+
+    private var promptIsValid: Bool {
+        !generation.positivePrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var recentPrompts: [String] {
+        Array(promptHistoryStore.prompts.prefix(8))
+    }
 
     private func dismissKeyboard() {
+        promptFieldFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
-    func submit() {
-        startGeneration(prompt: generation.positivePrompt, generation: generation, historyStore: historyStore)
+    private func usePrompt(_ prompt: String) {
+        generation.positivePrompt = prompt
+        Settings.shared.prompt = prompt
+        dismissKeyboard()
+    }
+
+    private func submit(prompt overridePrompt: String? = nil) {
+        let finalPrompt = (overridePrompt ?? generation.positivePrompt).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalPrompt.isEmpty else { return }
+
+        generation.positivePrompt = finalPrompt
+        Settings.shared.prompt = finalPrompt
+        promptHistoryStore.record(finalPrompt)
+        dismissKeyboard()
+
+        startGeneration(prompt: finalPrompt, generation: generation, historyStore: historyStore)
+    }
+
+    private func repeatPrompt(_ prompt: String) {
+        usePrompt(prompt)
+        submit(prompt: prompt)
     }
     
     var body: some View {
-        VStack {
-            ImageWithPlaceholder(state: $generation.state)
-                .scaledToFit()
+        ScrollView {
+            VStack(spacing: 16) {
+                ImageWithPlaceholder(state: $generation.state)
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
 
-            HStack {
-                PromptTextField(text: $generation.positivePrompt, isPositivePrompt: true, model: iosModel().modelVersion)
-                Button("Generate") {
-                    dismissKeyboard()
-                    submit()
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Prompt")
+                            .font(.headline)
+                        Spacer()
+                        Button {
+                            dismissKeyboard()
+                        } label: {
+                            Label("Done", systemImage: "keyboard.chevron.compact.down")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $generation.positivePrompt)
+                            .focused($promptFieldFocused)
+                            .frame(minHeight: 120)
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color.secondary.opacity(0.35), lineWidth: 1)
+                            )
+
+                        if generation.positivePrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text("Describe what you want to generate...")
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 18)
+                                .allowsHitTesting(false)
+                        }
+                    }
+
+                    HStack {
+                        Button("Clear") {
+                            generation.positivePrompt = ""
+                            Settings.shared.prompt = ""
+                        }
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        Button {
+                            submit()
+                        } label: {
+                            Label(isRunning ? "Generating..." : "Generate", systemImage: "sparkles")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isRunning || !promptIsValid)
+                    }
                 }
-                .padding()
-                .buttonStyle(.borderedProminent)
-                Button {
-                    dismissKeyboard()
-                } label: {
-                    Image(systemName: "keyboard.chevron.compact.down")
+
+                if !recentPrompts.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Recent Prompts")
+                            .font(.headline)
+
+                        ForEach(recentPrompts, id: \.self) { prompt in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(prompt)
+                                    .font(.subheadline)
+                                    .lineLimit(3)
+
+                                HStack {
+                                    Button("Use") {
+                                        usePrompt(prompt)
+                                    }
+                                    .buttonStyle(.bordered)
+
+                                    Button {
+                                        repeatPrompt(prompt)
+                                    } label: {
+                                        Label("Repeat", systemImage: "arrow.clockwise")
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(isRunning)
+                                }
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
                 }
-                .padding(.trailing, 4)
-                .buttonStyle(.bordered)
             }
-            Spacer()
+            .padding()
         }
-        .padding()
+        .onChange(of: generation.positivePrompt) { newPrompt in
+            Settings.shared.prompt = newPrompt
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    dismissKeyboard()
+                }
+            }
+        }
         .environmentObject(generation)
     }
 }
@@ -523,6 +667,7 @@ struct GenerationView: View {
 struct TextToImage: View {
     @EnvironmentObject var generation: GenerationContext
     @StateObject private var historyStore = HistoryStore()
+    @StateObject private var promptHistoryStore = PromptHistoryStore()
     @State private var selectedTab: HomeTab = .generation
 
     var body: some View {
@@ -540,5 +685,6 @@ struct TextToImage: View {
         }
         .environmentObject(generation)
         .environmentObject(historyStore)
+        .environmentObject(promptHistoryStore)
     }
 }
