@@ -125,11 +125,7 @@ extension PipelineLoader {
             try await download()
             try await unzip()
             let pipeline = try await load(url: compiledURL)
-            return Pipeline(
-                pipeline,
-                maxSeed: maxSeed,
-                supportsImageToImage: model.supportsEncoder
-            )
+            return Pipeline(pipeline, maxSeed: maxSeed)
         } catch {
             state = .failed(error)
             throw error

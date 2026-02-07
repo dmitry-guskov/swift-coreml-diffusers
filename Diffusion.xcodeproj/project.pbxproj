@@ -425,7 +425,7 @@
 			packageReferences = (
 				EBB5BA5B294504DE003A2A5B /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				F155203A297118E600DC009B /* XCRemoteSwiftPackageReference "CompactSlider" */,
-				16AFDD4D2C1B7D4800536A62 /* XCRemoteSwiftPackageReference "ml-stable-diffusion" */,
+				16AFDD4D2C1B7D4800536A62 /* XCLocalSwiftPackageReference "ml-stable-diffusion" */,
 			);
 			productRefGroup = EBE755C6293E37DD00806B32 /* Products */;
 			projectDirPath = "";
@@ -966,15 +966,14 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		16AFDD4D2C1B7D4800536A62 /* XCRemoteSwiftPackageReference "ml-stable-diffusion" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/argmaxinc/ml-stable-diffusion.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		16AFDD4D2C1B7D4800536A62 /* XCLocalSwiftPackageReference "ml-stable-diffusion" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ml-stable-diffusion;
 		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
 		EBB5BA5B294504DE003A2A5B /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
@@ -996,12 +995,12 @@
 /* Begin XCSwiftPackageProductDependency section */
 		16AFDD4E2C1B7D6200536A62 /* StableDiffusion */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 16AFDD4D2C1B7D4800536A62 /* XCRemoteSwiftPackageReference "ml-stable-diffusion" */;
+			package = 16AFDD4D2C1B7D4800536A62 /* XCLocalSwiftPackageReference "ml-stable-diffusion" */;
 			productName = StableDiffusion;
 		};
 		16AFDD502C1B7D6700536A62 /* StableDiffusion */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 16AFDD4D2C1B7D4800536A62 /* XCRemoteSwiftPackageReference "ml-stable-diffusion" */;
+			package = 16AFDD4D2C1B7D4800536A62 /* XCLocalSwiftPackageReference "ml-stable-diffusion" */;
 			productName = StableDiffusion;
 		};
 		EB0199482A31FEAF00B133E2 /* StableDiffusion */ = {

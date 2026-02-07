@@ -42,7 +42,6 @@ struct GenerationResult {
 class Pipeline {
     let pipeline: StableDiffusionPipelineProtocol
     let maxSeed: UInt32
-    let supportsImageToImage: Bool
     
     var isXL: Bool {
         if #available(macOS 14.0, iOS 17.0, *) {
@@ -69,12 +68,10 @@ class Pipeline {
 
     init(
         _ pipeline: StableDiffusionPipelineProtocol,
-        maxSeed: UInt32 = UInt32.max,
-        supportsImageToImage: Bool = false
+        maxSeed: UInt32 = UInt32.max
     ) {
         self.pipeline = pipeline
         self.maxSeed = maxSeed
-        self.supportsImageToImage = supportsImageToImage
     }
     
     func generate(
@@ -87,7 +84,9 @@ class Pipeline {
         guidanceScale: Float = 7.5,
         disableSafety: Bool = false,
         startingImage: CGImage? = nil,
-        strength: Float? = nil
+        strength: Float? = nil,
+        interpolationSeed: UInt32? = nil,
+        interpolationAmount: Float? = nil
     ) throws -> GenerationResult {
         let beginDate = Date()
         canceled = false
@@ -106,6 +105,10 @@ class Pipeline {
         config.startingImage = startingImage
         if let strength {
             config.strength = max(0, min(1, strength))
+        }
+        config.interpolationSeed = interpolationSeed
+        if let interpolationAmount {
+            config.interpolationAmount = max(0, min(1, interpolationAmount))
         }
         if isXL {
             config.encoderScaleFactor = 0.13025

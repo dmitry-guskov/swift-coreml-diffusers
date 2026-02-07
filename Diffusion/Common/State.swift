@@ -90,15 +90,6 @@ class GenerationContext: ObservableObject {
         }
     }
 
-    private func blendedSeed(previous: UInt32, fresh: UInt32, amount: Double) -> UInt32 {
-        let clamped = max(0, min(1, amount))
-        let previousValue = Double(previous)
-        let freshValue = Double(fresh)
-        let mixed = ((1.0 - clamped) * previousValue) + (clamped * freshValue)
-        let bounded = max(1.0, min(Double(UInt32.max), mixed.rounded()))
-        return UInt32(bounded)
-    }
-
     func updateVariationBase(seed: UInt32, image: CGImage?) {
         variationBaseSeed = seed
         variationBaseImage = image
@@ -107,38 +98,32 @@ class GenerationContext: ObservableObject {
     func generate(
         prompt overridePrompt: String? = nil,
         baseSeed: UInt32? = nil,
-        baseImage: CGImage? = nil,
+        baseImage _: CGImage? = nil,
         forceSeed: UInt32? = nil
     ) async throws -> GenerationResult {
         guard let pipeline = pipeline else { throw "No pipeline" }
         let variation = max(0, min(1, variationAmount))
         let sourceSeed = baseSeed ?? variationBaseSeed
-        let sourceImage = baseImage ?? variationBaseImage
         let configuredSeed = forceSeed ?? seed
 
         var generationSeed = configuredSeed
-        var startingImage: CGImage? = nil
-        var strength: Float? = nil
+        var interpolationSeed: UInt32? = nil
+        var interpolationAmount: Float? = nil
 
         if variation <= 0 {
             if let sourceSeed {
                 generationSeed = sourceSeed
             }
         } else if variation < 1 {
+            if configuredSeed == 0 {
+                generationSeed = UInt32.random(in: 1...UInt32.max)
+            }
             if let sourceSeed {
-                let freshSeed: UInt32
-                if configuredSeed > 0 {
-                    freshSeed = configuredSeed
-                } else {
-                    freshSeed = UInt32.random(in: 1...UInt32.max)
-                }
-                generationSeed = blendedSeed(previous: sourceSeed, fresh: freshSeed, amount: variation)
+                interpolationSeed = sourceSeed
+                interpolationAmount = Float(variation)
             }
-
-            if pipeline.supportsImageToImage, let sourceImage {
-                startingImage = sourceImage
-                strength = Float(variation)
-            }
+        } else if configuredSeed == 0 {
+            generationSeed = UInt32.random(in: 1...UInt32.max)
         }
 
         return try pipeline.generate(
@@ -150,8 +135,10 @@ class GenerationContext: ObservableObject {
             numPreviews: Int(previews),
             guidanceScale: Float(guidanceScale),
             disableSafety: disableSafety,
-            startingImage: startingImage,
-            strength: strength
+            startingImage: nil,
+            strength: nil,
+            interpolationSeed: interpolationSeed,
+            interpolationAmount: interpolationAmount
         )
     }
     

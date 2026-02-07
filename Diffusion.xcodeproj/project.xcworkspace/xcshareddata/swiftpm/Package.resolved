@@ -1,5 +1,5 @@
 {
-  "originHash" : "e97aab54879429ea40e58df49ffe4eef5228d95a28a7cf4d5dca9204c33564e1",
+  "originHash" : "f9d5c7ac752eb0f621ad30a53a41f6a0fc3e69c6add388f3cc1d1bcc9c399923",
   "pins" : [
     {
       "identity" : "compactslider",
@@ -8,24 +8,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "31a4db8ef10f32e574be35399b10b00e05d27e38"
-      }
-    },
-    {
-      "identity" : "ml-stable-diffusion",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/argmaxinc/ml-stable-diffusion.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "d1f0604fab5345011e0b9f5b87ee0c155612565f"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser.git",
-      "state" : {
-        "revision" : "0fbc8848e389af3bb55c182bc19ca9d5dc2f255b",
-        "version" : "1.4.0"
       }
     },
     {

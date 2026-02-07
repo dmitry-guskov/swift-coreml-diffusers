@@ -559,7 +559,7 @@ struct GenerationView: View {
     }
 
     private var hasVariationSource: Bool {
-        generation.variationBaseSeed != nil && generation.variationBaseImage != nil
+        generation.variationBaseSeed != nil
     }
 
     private var variationValueText: String {
