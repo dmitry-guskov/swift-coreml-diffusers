@@ -107,41 +107,36 @@ struct BrandedLoadingView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let boxSide = min(proxy.size.width, proxy.size.height) * 0.5
-            let cornerRadius = boxSide * 0.12
-            let iconSide = boxSide * 0.82
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.10, green: 0.12, blue: 0.23),
+                    Color(red: 0.07, green: 0.20, blue: 0.33)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.10, green: 0.12, blue: 0.23),
-                        Color(red: 0.07, green: 0.20, blue: 0.33)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+            VStack(spacing: 26) {
+                Spacer(minLength: 24)
 
-                VStack {
-                    Spacer(minLength: 0)
+                VStack(spacing: 14) {
+                    Image("LaunchIcon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 108, height: 108)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .shadow(color: .black.opacity(0.25), radius: 16, x: 0, y: 8)
 
-                    ZStack {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(.white.opacity(0.14))
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(.white.opacity(0.22), lineWidth: 1.2)
-                        Image("LaunchIcon")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: iconSide, height: iconSide)
-                    }
-                    .frame(width: boxSide, height: boxSide)
-                    .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 10)
-
-                    Spacer(minLength: 0)
+                    Text("Glam Text-to-Image")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("On-device image generation")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.82))
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .multilineTextAlignment(.center)
 
                 VStack(spacing: 10) {
                     Text(phase)
@@ -177,11 +172,10 @@ struct BrandedLoadingView: View {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(.white.opacity(0.18), lineWidth: 1)
                 )
-                .frame(maxWidth: min(proxy.size.width * 0.9, 560))
-                .padding(.horizontal, 22)
-                .padding(.bottom, 26)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
+                Spacer(minLength: 10)
             }
+            .padding(22)
         }
     }
 }
