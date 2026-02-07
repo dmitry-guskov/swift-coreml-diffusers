@@ -182,7 +182,7 @@ public struct StableDiffusionXLPipeline: StableDiffusionPipelineProtocol {
 
         // Generate random latent samples from specified seed
         var latents: [MLShapedArray<Float32>] = try generateLatentSamples(configuration: config, scheduler: scheduler[0])
-        let initialLatentSamples = latents.map { MLShapedArray(converting: $0) }
+        let initialLatentSamples: [MLShapedArray<Float32>] = latents
 
         // Store denoised latents from scheduler to pass into decoder
         var denoisedLatents: [MLShapedArray<Float32>] = latents.map { MLShapedArray(converting: $0) }
