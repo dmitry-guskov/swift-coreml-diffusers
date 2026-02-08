@@ -821,6 +821,7 @@ struct GenerationView: View {
     @EnvironmentObject var historyStore: HistoryStore
     @EnvironmentObject var promptHistoryStore: PromptHistoryStore
     @FocusState private var promptFieldFocused: Bool
+    @State private var showGenerationSettings = false
 
     private var isRunning: Bool {
         if case .running = generation.state {
@@ -843,6 +844,17 @@ struct GenerationView: View {
 
     private var variationValueText: String {
         String(format: "%.2f", generation.variationAmount)
+    }
+
+    private var stepCountValue: Int {
+        max(1, min(50, Int(generation.steps.rounded())))
+    }
+
+    private func setStepCount(_ value: Int) {
+        let clamped = max(1, min(50, value))
+        let asDouble = Double(clamped)
+        generation.steps = asDouble
+        Settings.shared.stepCount = asDouble
     }
 
     private var variationDescription: String {
@@ -1012,7 +1024,79 @@ struct GenerationView: View {
                 }
             }
         }
+        .overlay(alignment: .topTrailing) {
+            Button {
+                dismissKeyboard()
+                showGenerationSettings = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.headline)
+                    .padding(10)
+                    .background(.thinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Generation settings")
+            .padding(.top, 8)
+            .padding(.trailing, 16)
+        }
+        .sheet(isPresented: $showGenerationSettings) {
+            GenerationSettingsSheet(
+                steps: stepCountValue,
+                onChangeSteps: setStepCount(_:)
+            )
+        }
         .environmentObject(generation)
+    }
+}
+
+private struct GenerationSettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let steps: Int
+    var onChangeSteps: (Int) -> Void
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Steps") {
+                    HStack {
+                        Text("Number of steps")
+                        Spacer()
+                        Text("\(steps)")
+                            .font(.body.monospacedDigit())
+                            .foregroundColor(.secondary)
+                    }
+
+                    Stepper(value: Binding(
+                        get: { steps },
+                        set: { newValue in
+                            onChangeSteps(newValue)
+                        }
+                    ), in: 1...50) {
+                        Text("Adjust steps")
+                    }
+
+                    Slider(
+                        value: Binding(
+                            get: { Double(steps) },
+                            set: { newValue in
+                                onChangeSteps(Int(newValue.rounded()))
+                            }
+                        ),
+                        in: 1...50,
+                        step: 1
+                    )
+                }
+            }
+            .navigationTitle("Generation Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
