@@ -92,11 +92,21 @@ class GenerationContext: ObservableObject {
         }
     }
 
-    func updateVariationBase(seed: UInt32, image: CGImage?, noiseData: Data? = nil, noiseShape: [Int]? = nil) {
+    private func applyVariationBase(seed: UInt32, image: CGImage?, noiseData: Data?, noiseShape: [Int]?) {
         variationBaseSeed = seed
         variationBaseImage = image
         variationBaseNoiseData = noiseData
         variationBaseNoiseShape = noiseShape
+    }
+
+    func updateVariationBase(seed: UInt32, image: CGImage?, noiseData: Data? = nil, noiseShape: [Int]? = nil) {
+        if Thread.isMainThread {
+            applyVariationBase(seed: seed, image: image, noiseData: noiseData, noiseShape: noiseShape)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.applyVariationBase(seed: seed, image: image, noiseData: noiseData, noiseShape: noiseShape)
+            }
+        }
     }
 
     func loadHistorySelection(
