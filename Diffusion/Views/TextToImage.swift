@@ -180,7 +180,7 @@ final class HistoryStore: ObservableObject {
             try imageData.write(to: fileURL, options: .atomic)
 
             var noiseFilename: String? = nil
-            if let initialNoiseData, let initialNoiseShape {
+            if let initialNoiseData, initialNoiseShape != nil {
                 let noiseFileURL = noiseURL(for: fileURL)
                 try initialNoiseData.write(to: noiseFileURL, options: .atomic)
                 noiseFilename = noiseFileURL.lastPathComponent
@@ -201,6 +201,33 @@ final class HistoryStore: ObservableObject {
         } catch {
             print("Error saving generated image history: \(error)")
         }
+    }
+
+    private func removeIfExists(_ url: URL) {
+        guard fileManager.fileExists(atPath: url.path) else {
+            return
+        }
+        do {
+            try fileManager.removeItem(at: url)
+        } catch {
+            print("Error removing history file \(url.lastPathComponent): \(error)")
+        }
+    }
+
+    func delete(_ item: HistoryItem) {
+        let imageURL = item.fileURL
+        let sidecarURL = metadataURL(for: imageURL)
+        let fallbackNoiseURL = noiseURL(for: imageURL)
+
+        removeIfExists(imageURL)
+        removeIfExists(sidecarURL)
+        if let noiseURL = item.noiseURL {
+            removeIfExists(noiseURL)
+        } else {
+            removeIfExists(fallbackNoiseURL)
+        }
+
+        reload()
     }
 }
 
@@ -286,24 +313,39 @@ private func startGeneration(
 
 struct HistoryImageCard: View {
     let item: HistoryItem
+    var onDelete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let image = UIImage(contentsOfFile: item.fileURL.path) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 140)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            } else {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(.gray.opacity(0.15))
-                    .frame(height: 140)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .foregroundColor(.secondary)
-                    )
+            ZStack(alignment: .topTrailing) {
+                if let image = UIImage(contentsOfFile: item.fileURL.path) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 140)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                } else {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.gray.opacity(0.15))
+                        .frame(height: 140)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(.secondary)
+                        )
+                }
+
+                Button {
+                    onDelete()
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(8)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+                .padding(8)
             }
 
             Text(item.prompt)
@@ -323,15 +365,25 @@ struct HistoryImageCard: View {
 }
 
 struct HistoryImageDetailView: View {
-    let item: HistoryItem
+    let items: [HistoryItem]
+    @Binding var selectedIndex: Int?
     var isGenerating: Bool
     var onRegenerate: (HistoryItem) -> Void
+    var onDelete: (HistoryItem) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var showSavedMessage = false
 
+    private var item: HistoryItem? {
+        guard let selectedIndex, items.indices.contains(selectedIndex) else {
+            return nil
+        }
+        return items[selectedIndex]
+    }
+
     private var image: UIImage? {
-        UIImage(contentsOfFile: item.fileURL.path)
+        guard let item else { return nil }
+        return UIImage(contentsOfFile: item.fileURL.path)
     }
 
     private func saveToPhotos() {
@@ -342,88 +394,169 @@ struct HistoryImageDetailView: View {
         }
     }
 
+    private var canShowNext: Bool {
+        guard let selectedIndex else { return false }
+        return selectedIndex + 1 < items.count
+    }
+
+    private var canShowPrevious: Bool {
+        guard let selectedIndex else { return false }
+        return selectedIndex > 0
+    }
+
+    private func showNext() {
+        guard canShowNext, let selectedIndex else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            self.selectedIndex = selectedIndex + 1
+        }
+        showSavedMessage = false
+    }
+
+    private func showPrevious() {
+        guard canShowPrevious, let selectedIndex else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            self.selectedIndex = selectedIndex - 1
+        }
+        showSavedMessage = false
+    }
+
+    private func deleteCurrentItem() {
+        guard let item, let selectedIndex else { return }
+        let oldCount = items.count
+        onDelete(item)
+        showSavedMessage = false
+
+        if oldCount <= 1 {
+            self.selectedIndex = nil
+            dismiss()
+            return
+        }
+
+        self.selectedIndex = min(selectedIndex, oldCount - 2)
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                HStack {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    Spacer()
-                    if showSavedMessage {
-                        Text("Saved")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.white.opacity(0.18), in: Capsule())
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-                Group {
-                    if let image = image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    } else {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.white.opacity(0.12))
-                            .overlay(
-                                Image(systemName: "photo")
-                                    .font(.system(size: 40))
-                                    .foregroundStyle(.white.opacity(0.75))
-                            )
-                    }
-                }
-                .padding(.horizontal)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(item.prompt)
-                        .font(.body)
-                        .foregroundStyle(.white)
-                    Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.8))
-                    Text("Seed \(item.seed)")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.8))
-
-                    HStack(spacing: 10) {
+            if let item {
+                VStack(spacing: 16) {
+                    HStack {
                         Button {
-                            saveToPhotos()
-                        } label: {
-                            Label("Save", systemImage: "square.and.arrow.down")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-
-                        Button {
-                            onRegenerate(item)
+                            selectedIndex = nil
                             dismiss()
                         } label: {
-                            Label("Regenerate", systemImage: "arrow.triangle.2.circlepath")
-                                .frame(maxWidth: .infinity)
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.white.opacity(0.9))
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isGenerating)
+                        Spacer()
+                        if showSavedMessage {
+                            Text("Saved")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.white.opacity(0.18), in: Capsule())
+                        }
+                        Button {
+                            deleteCurrentItem()
+                        } label: {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                                .padding(10)
+                                .background(.white.opacity(0.16), in: Circle())
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    Group {
+                        if let image = image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        } else {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.white.opacity(0.12))
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 40))
+                                        .foregroundStyle(.white.opacity(0.75))
+                                )
+                        }
+                    }
+                    .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(item.prompt)
+                            .font(.body)
+                            .foregroundStyle(.white)
+                        Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.8))
+                        Text("Seed \(item.seed)")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.8))
+                        Text("Swipe up or down to browse history")
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.7))
+
+                        HStack(spacing: 10) {
+                            Button {
+                                saveToPhotos()
+                            } label: {
+                                Label("Save", systemImage: "square.and.arrow.down")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+
+                            Button {
+                                onRegenerate(item)
+                                selectedIndex = nil
+                                dismiss()
+                            } label: {
+                                Label("Regenerate", systemImage: "arrow.triangle.2.circlepath")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isGenerating)
+                        }
+                    }
+                    .padding()
+                    .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
-                .padding()
-                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-                .padding(.horizontal)
-                .padding(.bottom, 20)
+                .id(item.id)
+            } else {
+                ProgressView()
+                    .tint(.white)
             }
         }
+        .onChange(of: items.count) { newCount in
+            guard let selectedIndex else { return }
+            if newCount == 0 {
+                self.selectedIndex = nil
+                dismiss()
+            } else if selectedIndex >= newCount {
+                self.selectedIndex = newCount - 1
+            }
+        }
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    if value.translation.height <= -80 {
+                        showNext()
+                    } else if value.translation.height >= 80 {
+                        showPrevious()
+                    }
+                }
+        )
     }
 }
 
@@ -431,7 +564,7 @@ struct HistoryGalleryView: View {
     @EnvironmentObject var historyStore: HistoryStore
     @EnvironmentObject var generation: GenerationContext
     @Binding var selectedTab: HomeTab
-    @State private var selectedItem: HistoryItem?
+    @State private var selectedIndex: Int?
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 12)]
 
@@ -461,12 +594,16 @@ struct HistoryGalleryView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 12) {
                             ForEach(historyStore.items) { item in
-                                Button {
-                                    selectedItem = item
-                                } label: {
-                                    HistoryImageCard(item: item)
+                                HistoryImageCard(item: item) {
+                                    historyStore.delete(item)
                                 }
-                                .buttonStyle(.plain)
+                                .contentShape(RoundedRectangle(cornerRadius: 12))
+                                .onTapGesture {
+                                    guard let index = historyStore.items.firstIndex(where: { $0.id == item.id }) else {
+                                        return
+                                    }
+                                    selectedIndex = index
+                                }
                             }
                         }
                         .padding()
@@ -477,9 +614,19 @@ struct HistoryGalleryView: View {
             .onAppear {
                 historyStore.reload()
             }
-            .fullScreenCover(item: $selectedItem) { item in
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { selectedIndex != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            selectedIndex = nil
+                        }
+                    }
+                )
+            ) {
                 HistoryImageDetailView(
-                    item: item,
+                    items: historyStore.items,
+                    selectedIndex: $selectedIndex,
                     isGenerating: isGenerating,
                     onRegenerate: { selectedItem in
                         selectedTab = .generation
@@ -493,6 +640,9 @@ struct HistoryGalleryView: View {
                             noiseData: savedNoise?.data,
                             noiseShape: savedNoise?.shape
                         )
+                    },
+                    onDelete: { item in
+                        historyStore.delete(item)
                     }
                 )
             }
