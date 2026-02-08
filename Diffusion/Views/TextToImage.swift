@@ -281,7 +281,9 @@ private func startGeneration(
     generation.positivePrompt = promptToUse
 
     Task {
-        generation.state = .running(nil)
+        await MainActor.run {
+            generation.state = .running(nil)
+        }
         do {
             let result = try await generation.generate(
                 prompt: promptToUse,
@@ -289,13 +291,15 @@ private func startGeneration(
                 baseImage: baseImage,
                 forceSeed: forceSeed
             )
-            generation.state = .complete(promptToUse, result.image, result.lastSeed, result.interval)
-            generation.updateVariationBase(
-                seed: result.lastSeed,
-                image: result.image,
-                noiseData: result.initialNoiseData,
-                noiseShape: result.initialNoiseShape
-            )
+            await MainActor.run {
+                generation.state = .complete(promptToUse, result.image, result.lastSeed, result.interval)
+                generation.updateVariationBase(
+                    seed: result.lastSeed,
+                    image: result.image,
+                    noiseData: result.initialNoiseData,
+                    noiseShape: result.initialNoiseShape
+                )
+            }
             if let image = result.image {
                 historyStore.save(
                     image: image,
@@ -306,7 +310,9 @@ private func startGeneration(
                 )
             }
         } catch {
-            generation.state = .failed(error)
+            await MainActor.run {
+                generation.state = .failed(error)
+            }
         }
     }
 }
