@@ -373,21 +373,27 @@ struct HistoryImageDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showSavedMessage = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var isTransitioning = false
 
-    private var item: HistoryItem? {
+    private var currentIndex: Int? {
         guard let selectedIndex, items.indices.contains(selectedIndex) else {
             return nil
         }
-        return items[selectedIndex]
+        return selectedIndex
     }
 
-    private var image: UIImage? {
-        guard let item else { return nil }
-        return UIImage(contentsOfFile: item.fileURL.path)
+    private func item(at index: Int) -> HistoryItem? {
+        guard items.indices.contains(index) else { return nil }
+        return items[index]
     }
 
-    private func saveToPhotos() {
-        guard let image = image else { return }
+    private func image(for item: HistoryItem) -> UIImage? {
+        UIImage(contentsOfFile: item.fileURL.path)
+    }
+
+    private func saveToPhotos(_ image: UIImage?) {
+        guard let image else { return }
         UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         withAnimation(.easeInOut(duration: 0.2)) {
             showSavedMessage = true
@@ -395,36 +401,80 @@ struct HistoryImageDetailView: View {
     }
 
     private var canShowNext: Bool {
-        guard let selectedIndex else { return false }
-        return selectedIndex + 1 < items.count
+        guard let currentIndex else { return false }
+        return currentIndex + 1 < items.count
     }
 
     private var canShowPrevious: Bool {
-        guard let selectedIndex else { return false }
-        return selectedIndex > 0
+        guard let currentIndex else { return false }
+        return currentIndex > 0
     }
 
-    private func showNext() {
-        guard canShowNext, let selectedIndex else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            self.selectedIndex = selectedIndex + 1
+    private func clampedTranslation(_ translation: CGFloat) -> CGFloat {
+        if translation < 0, !canShowNext {
+            return translation * 0.2
         }
-        showSavedMessage = false
+        if translation > 0, !canShowPrevious {
+            return translation * 0.2
+        }
+        return translation
     }
 
-    private func showPrevious() {
-        guard canShowPrevious, let selectedIndex else { return }
-        withAnimation(.easeInOut(duration: 0.2)) {
-            self.selectedIndex = selectedIndex - 1
-        }
+    private func handleDragChanged(_ value: DragGesture.Value) {
+        guard !isTransitioning else { return }
+        dragOffset = clampedTranslation(value.translation.height)
+    }
+
+    private func transition(by delta: Int, pageHeight: CGFloat) {
+        guard let currentIndex else { return }
+        isTransitioning = true
         showSavedMessage = false
+        let targetOffset = delta > 0 ? -pageHeight : pageHeight
+
+        withAnimation(.interactiveSpring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.16)) {
+            dragOffset = targetOffset
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                selectedIndex = currentIndex + delta
+                dragOffset = 0
+            }
+            isTransitioning = false
+        }
+    }
+
+    private func handleDragEnded(_ value: DragGesture.Value, pageHeight: CGFloat) {
+        guard !isTransitioning else { return }
+
+        let threshold = min(max(pageHeight * 0.18, 80), 180)
+        let translation = dragOffset
+        let predicted = clampedTranslation(value.predictedEndTranslation.height)
+
+        if (translation < -threshold || predicted < -threshold), canShowNext {
+            transition(by: 1, pageHeight: pageHeight)
+            return
+        }
+
+        if (translation > threshold || predicted > threshold), canShowPrevious {
+            transition(by: -1, pageHeight: pageHeight)
+            return
+        }
+
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            dragOffset = 0
+        }
     }
 
     private func deleteCurrentItem() {
-        guard let item, let selectedIndex else { return }
+        guard let currentIndex, let item = item(at: currentIndex) else { return }
         let oldCount = items.count
         onDelete(item)
         showSavedMessage = false
+        dragOffset = 0
+        isTransitioning = false
 
         if oldCount <= 1 {
             self.selectedIndex = nil
@@ -432,110 +482,142 @@ struct HistoryImageDetailView: View {
             return
         }
 
-        self.selectedIndex = min(selectedIndex, oldCount - 2)
+        self.selectedIndex = min(currentIndex, oldCount - 2)
+    }
+
+    @ViewBuilder
+    private func pageView(for item: HistoryItem) -> some View {
+        VStack(spacing: 16) {
+            HStack {
+                Button {
+                    selectedIndex = nil
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                Spacer()
+                if showSavedMessage {
+                    Text("Saved")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.white.opacity(0.18), in: Capsule())
+                }
+                Button {
+                    deleteCurrentItem()
+                } label: {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .padding(10)
+                        .background(.white.opacity(0.16), in: Circle())
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+            Group {
+                if let image = image(for: item) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.white.opacity(0.12))
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.white.opacity(0.75))
+                        )
+                }
+            }
+            .padding(.horizontal)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(item.prompt)
+                    .font(.body)
+                    .foregroundStyle(.white)
+                Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+                Text("Seed \(item.seed)")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+                Text("Swipe up or down to browse history")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.7))
+
+                HStack(spacing: 10) {
+                    Button {
+                        saveToPhotos(image(for: item))
+                    } label: {
+                        Label("Save", systemImage: "square.and.arrow.down")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+
+                    Button {
+                        onRegenerate(item)
+                        selectedIndex = nil
+                        dismiss()
+                    } label: {
+                        Label("Regenerate", systemImage: "arrow.triangle.2.circlepath")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isGenerating)
+                }
+            }
+            .padding()
+            .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal)
+            .padding(.bottom, 20)
+        }
     }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-            if let item {
-                VStack(spacing: 16) {
-                    HStack {
-                        Button {
-                            selectedIndex = nil
-                            dismiss()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.white.opacity(0.9))
+                if let currentIndex {
+                    ZStack {
+                        if let previousItem = item(at: currentIndex - 1) {
+                            pageView(for: previousItem)
+                                .offset(y: -proxy.size.height + dragOffset)
                         }
-                        Spacer()
-                        if showSavedMessage {
-                            Text("Saved")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.white.opacity(0.18), in: Capsule())
-                        }
-                        Button {
-                            deleteCurrentItem()
-                        } label: {
-                            Image(systemName: "trash.fill")
-                                .font(.system(size: 17, weight: .semibold))
-                                .padding(10)
-                                .background(.white.opacity(0.16), in: Circle())
-                                .foregroundStyle(.white)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
 
-                    Group {
-                        if let image = image {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFit()
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                        } else {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.white.opacity(0.12))
-                                .overlay(
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 40))
-                                        .foregroundStyle(.white.opacity(0.75))
-                                )
+                        if let nextItem = item(at: currentIndex + 1) {
+                            pageView(for: nextItem)
+                                .offset(y: proxy.size.height + dragOffset)
+                        }
+
+                        if let currentItem = item(at: currentIndex) {
+                            pageView(for: currentItem)
+                                .offset(y: dragOffset)
                         }
                     }
-                    .padding(.horizontal)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(item.prompt)
-                            .font(.body)
-                            .foregroundStyle(.white)
-                        Text(item.createdAt.formatted(date: .abbreviated, time: .shortened))
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.8))
-                        Text("Seed \(item.seed)")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.8))
-                        Text("Swipe up or down to browse history")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.7))
-
-                        HStack(spacing: 10) {
-                            Button {
-                                saveToPhotos()
-                            } label: {
-                                Label("Save", systemImage: "square.and.arrow.down")
-                                    .frame(maxWidth: .infinity)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 10)
+                            .onChanged { value in
+                                handleDragChanged(value)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.blue)
-
-                            Button {
-                                onRegenerate(item)
-                                selectedIndex = nil
-                                dismiss()
-                            } label: {
-                                Label("Regenerate", systemImage: "arrow.triangle.2.circlepath")
-                                    .frame(maxWidth: .infinity)
+                            .onEnded { value in
+                                handleDragEnded(value, pageHeight: proxy.size.height)
                             }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(isGenerating)
-                        }
-                    }
-                    .padding()
-                    .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
+                    )
+                } else {
+                    ProgressView()
+                        .tint(.white)
                 }
-                .id(item.id)
-            } else {
-                ProgressView()
-                    .tint(.white)
             }
         }
         .onChange(of: items.count) { newCount in
@@ -547,16 +629,6 @@ struct HistoryImageDetailView: View {
                 self.selectedIndex = newCount - 1
             }
         }
-        .gesture(
-            DragGesture(minimumDistance: 30)
-                .onEnded { value in
-                    if value.translation.height <= -80 {
-                        showNext()
-                    } else if value.translation.height >= 80 {
-                        showPrevious()
-                    }
-                }
-        )
     }
 }
 
