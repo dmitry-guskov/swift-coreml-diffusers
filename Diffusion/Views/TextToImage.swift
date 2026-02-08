@@ -856,11 +856,26 @@ struct GenerationView: View {
         max(1, min(50, Int(generation.steps.rounded())))
     }
 
+    private var guidanceScaleValue: Double {
+        max(0, min(20, generation.guidanceScale))
+    }
+
     private func setStepCount(_ value: Int) {
         let clamped = max(1, min(50, value))
         let asDouble = Double(clamped)
         generation.steps = asDouble
         Settings.shared.stepCount = asDouble
+    }
+
+    private func setGuidanceScale(_ value: Double) {
+        let clamped = max(0, min(20, value))
+        generation.guidanceScale = clamped
+        Settings.shared.guidanceScale = clamped
+    }
+
+    private func setNegativePrompt(_ value: String) {
+        generation.negativePrompt = value
+        Settings.shared.negativePrompt = value
     }
 
     private var variationDescription: String {
@@ -1048,7 +1063,11 @@ struct GenerationView: View {
         .sheet(isPresented: $showGenerationSettings) {
             GenerationSettingsSheet(
                 steps: stepCountValue,
-                onChangeSteps: setStepCount(_:)
+                guidanceScale: guidanceScaleValue,
+                negativePrompt: generation.negativePrompt,
+                onChangeSteps: setStepCount(_:),
+                onChangeGuidanceScale: setGuidanceScale(_:),
+                onChangeNegativePrompt: setNegativePrompt(_:)
             )
         }
         .environmentObject(generation)
@@ -1058,7 +1077,11 @@ struct GenerationView: View {
 private struct GenerationSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let steps: Int
+    let guidanceScale: Double
+    let negativePrompt: String
     var onChangeSteps: (Int) -> Void
+    var onChangeGuidanceScale: (Double) -> Void
+    var onChangeNegativePrompt: (String) -> Void
 
     var body: some View {
         NavigationView {
@@ -1091,6 +1114,46 @@ private struct GenerationSettingsSheet: View {
                         in: 1...50,
                         step: 1
                     )
+                }
+
+                Section("Guidance") {
+                    HStack {
+                        Text("CFG scale")
+                        Spacer()
+                        Text(String(format: "%.1f", guidanceScale))
+                            .font(.body.monospacedDigit())
+                            .foregroundColor(.secondary)
+                    }
+
+                    Stepper(value: Binding(
+                        get: { guidanceScale },
+                        set: { newValue in
+                            onChangeGuidanceScale(newValue)
+                        }
+                    ), in: 0...20, step: 0.1) {
+                        Text("Adjust CFG scale")
+                    }
+
+                    Slider(
+                        value: Binding(
+                            get: { guidanceScale },
+                            set: { newValue in
+                                onChangeGuidanceScale(newValue)
+                            }
+                        ),
+                        in: 0...20,
+                        step: 0.1
+                    )
+                }
+
+                Section("Negative Prompt") {
+                    TextEditor(text: Binding(
+                        get: { negativePrompt },
+                        set: { newValue in
+                            onChangeNegativePrompt(newValue)
+                        }
+                    ))
+                    .frame(minHeight: 110)
                 }
             }
             .navigationTitle("Generation Settings")
