@@ -9,6 +9,8 @@
 import SwiftUI
 import Combine
 import StableDiffusion
+import UniformTypeIdentifiers
+
 
 struct HistoryItem: Identifiable {
     let id: String
@@ -263,6 +265,32 @@ private func startGeneration(prompt: String, generation: GenerationContext, hist
 
 private func loadCGImage(from fileURL: URL) -> CGImage? {
     UIImage(contentsOfFile: fileURL.path)?.cgImage
+}
+
+private func formatDuration(_ seconds: Double) -> String {
+    let total = max(0, Int(seconds.rounded()))
+    let minutes = total / 60
+    let remainder = total % 60
+    return String(format: "%02d:%02d", minutes, remainder)
+}
+
+private func findMlmodelcParent(from url: URL) -> URL? {
+    // If the URL itself is .mlmodelc, return it
+    if url.pathExtension.lowercased() == "mlmodelc" {
+        return url
+    }
+    
+    // Walk up the path looking for .mlmodelc parent
+    var current = url.deletingLastPathComponent()
+    for _ in 0..<5 {
+        if current.pathExtension.lowercased() == "mlmodelc" {
+            return current
+        }
+        let parent = current.deletingLastPathComponent()
+        if parent == current { break }
+        current = parent
+    }
+    return nil
 }
 
 private func startGeneration(
@@ -778,12 +806,23 @@ struct ImageWithPlaceholder: View {
         case .running(let progress):
             guard let progress = progress, progress.stepCount > 0 else {
                 // The first time it takes a little bit before generation starts
-                return AnyView(ProgressView())
+                let phaseText = generation.generationProgressSnapshot.phaseText
+                return AnyView(VStack(spacing: 10) {
+                    ProgressView()
+                    Text(phaseText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                })
             }
 
             let step = Int(progress.step) + 1
             let fraction = Double(step) / Double(progress.stepCount)
             let label = "Step \(step) of \(progress.stepCount)"
+            let snapshot = generation.generationProgressSnapshot
+            let percentText = String(format: "%.1f%%", snapshot.fraction * 100)
+            let itPerSecText = snapshot.iterationsPerSecond.map { String(format: "%.2f it/s", $0) } ?? "it/s pending"
+            let etaText = snapshot.etaSeconds.map { formatDuration($0) } ?? "pending"
+            let elapsedText = formatDuration(snapshot.elapsedSeconds)
             return AnyView(VStack {
                 Group {
                     if let safeImage = generation.previewImage {
@@ -793,6 +832,10 @@ struct ImageWithPlaceholder: View {
                     }
                 }
                 ProgressView(label, value: fraction, total: 1).padding()
+                Text("Step \(snapshot.step)/\(snapshot.stepCount) | \(percentText) | \(itPerSecText) | ETA \(etaText) | Elapsed \(elapsedText)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
             })
         case .complete(let lastPrompt, let image, _, let interval):
             guard let theImage = image else {
@@ -823,11 +866,21 @@ struct ImageWithPlaceholder: View {
 }
 
 struct GenerationView: View {
+    private enum FilePickerTarget {
+        case transformer
+        case vae
+        case embeddings
+        case initialLatent
+    }
+
     @EnvironmentObject var generation: GenerationContext
     @EnvironmentObject var historyStore: HistoryStore
     @EnvironmentObject var promptHistoryStore: PromptHistoryStore
     @FocusState private var promptFieldFocused: Bool
-    @State private var showGenerationSettings = false
+    @State private var activeFilePicker: FilePickerTarget?
+    @State private var checkpointError: String?
+    @State private var isPreparingModels = false
+    @State private var modelPreparationStatus = "Models not loaded yet."
 
     private var isRunning: Bool {
         if case .running = generation.state {
@@ -838,6 +891,10 @@ struct GenerationView: View {
 
     private var promptIsValid: Bool {
         !generation.positivePrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var pipelineReady: Bool {
+        generation.pipeline != nil
     }
 
     private var recentPrompts: [String] {
@@ -856,10 +913,6 @@ struct GenerationView: View {
         max(1, min(50, Int(generation.steps.rounded())))
     }
 
-    private var guidanceScaleValue: Double {
-        max(0, min(20, generation.guidanceScale))
-    }
-
     private func setStepCount(_ value: Int) {
         let clamped = max(1, min(50, value))
         let asDouble = Double(clamped)
@@ -867,15 +920,15 @@ struct GenerationView: View {
         Settings.shared.stepCount = asDouble
     }
 
-    private func setGuidanceScale(_ value: Double) {
-        let clamped = max(0, min(20, value))
-        generation.guidanceScale = clamped
-        Settings.shared.guidanceScale = clamped
+    private var seedValueText: String {
+        String(generation.seed)
     }
 
-    private func setNegativePrompt(_ value: String) {
-        generation.negativePrompt = value
-        Settings.shared.negativePrompt = value
+    private func setSeedFromText(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsed = UInt32(trimmed) ?? 0
+        generation.seed = parsed
+        Settings.shared.seed = parsed
     }
 
     private var variationDescription: String {
@@ -916,6 +969,181 @@ struct GenerationView: View {
         usePrompt(prompt)
         submit(prompt: prompt)
     }
+
+    private func reloadCheckpoint() {
+        Task {
+            await MainActor.run {
+                isPreparingModels = true
+                modelPreparationStatus = "Preparing models… ETA pending"
+                checkpointError = nil
+            }
+            do {
+                guard #available(iOS 17.0, macOS 14.0, *) else {
+                    throw "ZImage checkpoint switching requires iOS 17 / macOS 14."
+                }
+                let transformerURL = generation.transformerModelURL
+                let vaeURL = generation.vaeDecoderModelURL
+                let embeddingsURL = generation.effectiveEmbeddingsURL
+                let bootstrap = ZImageBootstrapConfig(
+                    transformerURL: transformerURL,
+                    vaeDecoderURL: vaeURL,
+                    embeddingsURL: embeddingsURL
+                )
+                let loader = ZImagePipelineLoader(config: bootstrap, computeUnits: generation.computeUnits)
+                let pipeline = try loader.loadAppPipeline(runSmokeTest: false, smokeSteps: 4, smokeSeed: 42)
+                await MainActor.run {
+                    generation.pipeline = pipeline
+                    isPreparingModels = false
+                    modelPreparationStatus = "Models ready."
+                }
+            } catch {
+                await MainActor.run {
+                    checkpointError = """
+                    Failed to load selected checkpoint: \(error)
+                    Transformer path: \(generation.transformerModelURL.path)
+                    VAE path: \(generation.vaeDecoderModelURL.path)
+                    Embeddings path: \(generation.effectiveEmbeddingsURL.path)
+                    Transformer detail: \(generation.transformerPathResolutionDetail)
+                    VAE detail: \(generation.vaePathResolutionDetail)
+                    Embeddings detail: \(generation.embeddingsPathResolutionDetail)
+                    """
+                    isPreparingModels = false
+                    modelPreparationStatus = "Model preparation failed."
+                }
+            }
+        }
+    }
+
+    // MARK: - File import helpers
+    //
+    // On iOS, security-scoped bookmarks do NOT persist security grants across app
+    // launches (.withSecurityScope is macOS-only).  The only reliable approach is to
+    // COPY each picked resource into the app's own container immediately while the
+    // picker's scope is still active, then use the in-container path forever.
+    // NSFileCoordinator is used so iCloud placeholder files are downloaded first.
+
+    private func selectTransformerModel(from url: URL) {
+        // Start scope synchronously while we still hold the picker's grant.
+        let accessed = url.startAccessingSecurityScopedResource()
+
+        // Resolve the .mlmodelc directory before going async.
+        let mlmodelcURL = (url.pathExtension.lowercased() == "mlmodelc")
+            ? url : findMlmodelcParent(from: url)
+        guard let mlmodelcURL else {
+            if accessed { url.stopAccessingSecurityScopedResource() }
+            checkpointError = "Please select a .mlmodelc folder."
+            return
+        }
+
+        modelPreparationStatus = "Importing transformer model…"
+        Task {
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let folder = Settings.shared.importedResourcesURL()
+                let copied = try await Task.detached(priority: .userInitiated) {
+                    try importExternalResource(pickerURL: mlmodelcURL, into: folder)
+                }.value
+                await MainActor.run {
+                    generation.setTransformerModelPath(copied.path)
+                    modelPreparationStatus = "Transformer imported. Tap Reload Models."
+                }
+            } catch {
+                await MainActor.run {
+                    checkpointError = "Failed to import transformer: \(error.localizedDescription)"
+                    modelPreparationStatus = "Import failed."
+                }
+            }
+        }
+    }
+
+    private func selectVaeDecoderModel(from url: URL) {
+        let accessed = url.startAccessingSecurityScopedResource()
+
+        let mlmodelcURL = (url.pathExtension.lowercased() == "mlmodelc")
+            ? url : findMlmodelcParent(from: url)
+        guard let mlmodelcURL else {
+            if accessed { url.stopAccessingSecurityScopedResource() }
+            checkpointError = "Please select a .mlmodelc folder."
+            return
+        }
+
+        modelPreparationStatus = "Importing VAE model…"
+        Task {
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let folder = Settings.shared.importedResourcesURL()
+                let copied = try await Task.detached(priority: .userInitiated) {
+                    try importExternalResource(pickerURL: mlmodelcURL, into: folder)
+                }.value
+                await MainActor.run {
+                    generation.setVaeDecoderModelPath(copied.path)
+                    modelPreparationStatus = "VAE imported. Tap Reload Models."
+                }
+            } catch {
+                await MainActor.run {
+                    checkpointError = "Failed to import VAE: \(error.localizedDescription)"
+                    modelPreparationStatus = "Import failed."
+                }
+            }
+        }
+    }
+
+    private func selectEmbeddingsFile(from url: URL) {
+        let accessed = url.startAccessingSecurityScopedResource()
+        modelPreparationStatus = "Importing embeddings…"
+        Task {
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let folder = Settings.shared.importedResourcesURL()
+                let copied = try await Task.detached(priority: .userInitiated) {
+                    try importExternalResource(pickerURL: url, into: folder)
+                }.value
+                await MainActor.run {
+                    generation.setExternalEmbeddingsPath(copied.path)
+                    modelPreparationStatus = "Embeddings imported. Tap Reload Models."
+                }
+            } catch {
+                await MainActor.run {
+                    checkpointError = "Failed to import embeddings: \(error.localizedDescription)"
+                    modelPreparationStatus = "Import failed."
+                }
+            }
+        }
+    }
+
+    private func selectInitialLatentFile(from url: URL) {
+        let accessed = url.startAccessingSecurityScopedResource()
+        Task {
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let folder = Settings.shared.importedResourcesURL()
+                let copied = try await Task.detached(priority: .userInitiated) {
+                    try importExternalResource(pickerURL: url, into: folder)
+                }.value
+                await MainActor.run {
+                    generation.setInitialLatentPath(copied.path)
+                }
+            } catch {
+                await MainActor.run {
+                    checkpointError = "Failed to import initial latent: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private var embeddingsStatusText: String {
+        if let path = generation.externalEmbeddingsPath, !path.isEmpty {
+            return "Using embeddings file: \(URL(fileURLWithPath: path).lastPathComponent)"
+        }
+        return "No embeddings file selected."
+    }
+
+    private var initialLatentStatusText: String {
+        if let path = generation.initialLatentPath, !path.isEmpty {
+            return "Using initial latent file: \(URL(fileURLWithPath: path).lastPathComponent)"
+        }
+        return "No initial latent file selected."
+    }
     
     var body: some View {
         ScrollView {
@@ -925,6 +1153,97 @@ struct GenerationView: View {
                     .frame(maxWidth: .infinity)
 
                 VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Checkpoint Paths")
+                            .font(.headline)
+                        Text("Open the .mlmodelc folder and select any file inside it")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        HStack {
+                            Button("Select Transformer") {
+                                activeFilePicker = .transformer
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        HStack {
+                            Button("Select VAE") {
+                                activeFilePicker = .vae
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        Button("Reload Models") {
+                            reloadCheckpoint()
+                        }
+                        .buttonStyle(.bordered)
+                        Text("Transformer: \(generation.transformerModelPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Default path (\(generation.transformerModelURL.lastPathComponent))")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("VAE: \(generation.vaeDecoderPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Default path (\(generation.vaeDecoderModelURL.lastPathComponent))")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        if isPreparingModels {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text(modelPreparationStatus)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        #if os(iOS)
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Auto-detect from Files app")
+                                .font(.caption).bold()
+                            Text("Place files in the Files app under:")
+                                .font(.caption2).foregroundColor(.secondary)
+                            Text("On My iPhone → \(Bundle.main.displayName ?? "Diffusion")")
+                                .font(.caption2).foregroundColor(.secondary)
+                                .padding(.leading, 8)
+                            Text("Expected filenames:")
+                                .font(.caption2).foregroundColor(.secondary)
+                            Group {
+                                Text("• zimage_embeddings.bin")
+                                Text("• ZImageTurbo_TransformerBackbone.mlmodelc")
+                                Text("• VAEDecoder.mlmodelc")
+                            }
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 8)
+                        }
+
+                        Button("Reset to Auto-Detect") {
+                            generation.clearStaleIOSResourcePaths()
+                            modelPreparationStatus = "Paths reset. Tap Reload Models."
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                        #endif
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Run Configuration")
+                            .font(.headline)
+                        Text("Scheduler: \(generation.scheduler.rawValue)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("CFG: \(String(format: "%.2f", generation.guidanceScale))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Output: 512 x 512 (fixed)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Latents: channels=16, size=64 x 64 (fixed)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Steps: \(stepCountValue) | Seed: \(generation.seed)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Compute Units: \(String(describing: generation.computeUnits))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
                     HStack {
                         Text("Prompt")
                             .font(.headline)
@@ -956,6 +1275,48 @@ struct GenerationView: View {
                         }
                     }
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Button("Select Embeddings File") {
+                                activeFilePicker = .embeddings
+                            }
+                            .buttonStyle(.bordered)
+                            if generation.externalEmbeddingsPath != nil {
+                                Button("Clear Embeddings File") {
+                                    generation.setExternalEmbeddingsURL(nil)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        Text(embeddingsStatusText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Expected format: embeddings tensor .bin file.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Button("Select Init Latent Path") {
+                                activeFilePicker = .initialLatent
+                            }
+                            .buttonStyle(.bordered)
+                            if generation.initialLatentPath != nil {
+                                Button("Clear Init Latent Path") {
+                                    generation.setInitialLatentURL(nil)
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                        Text(initialLatentStatusText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("Expected format: raw Float32 .bin, shape [1,16,64,64].")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("Variation")
@@ -979,6 +1340,40 @@ struct GenerationView: View {
                         }
                     }
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Steps")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text("\(stepCountValue)")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundColor(.secondary)
+                        }
+                        Stepper(value: Binding(
+                            get: { stepCountValue },
+                            set: { setStepCount($0) }
+                        ), in: 1...50) {
+                            Text("Adjust steps")
+                        }
+
+                        HStack {
+                            Text("Seed")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            TextField("0", text: Binding(
+                                get: { seedValueText },
+                                set: { setSeedFromText($0) }
+                            ))
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 140)
+                        }
+                        Text("Seed 0 uses random seed each run.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
                     HStack {
                         Button("Clear") {
                             generation.positivePrompt = ""
@@ -991,10 +1386,13 @@ struct GenerationView: View {
                         Button {
                             submit()
                         } label: {
-                            Label(isRunning ? "Generating..." : "Generate", systemImage: "sparkles")
+                            Label(
+                                isRunning ? "Generating..." : (pipelineReady ? "Generate" : "Load Models First"),
+                                systemImage: pipelineReady ? "sparkles" : "exclamationmark.triangle"
+                            )
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(isRunning || !promptIsValid)
+                        .disabled(isRunning || !promptIsValid || !pipelineReady)
                     }
                 }
 
@@ -1036,6 +1434,54 @@ struct GenerationView: View {
         .onChange(of: generation.positivePrompt) { newPrompt in
             Settings.shared.prompt = newPrompt
         }
+        .fileImporter(
+            isPresented: Binding(
+                get: { activeFilePicker != nil },
+                set: { if !$0 { activeFilePicker = nil } }
+            ),
+            allowedContentTypes: [.data, .item],
+            allowsMultipleSelection: false
+        ) { result in
+            let picker = activeFilePicker
+            activeFilePicker = nil
+            switch result {
+            case .success(let urls):
+                guard let first = urls.first else { return }
+                switch picker {
+                case .transformer:
+                    selectTransformerModel(from: first)
+                case .vae:
+                    selectVaeDecoderModel(from: first)
+                case .embeddings:
+                    selectEmbeddingsFile(from: first)
+                case .initialLatent:
+                    selectInitialLatentFile(from: first)
+                case .none:
+                    break
+                }
+            case .failure(let error):
+                switch picker {
+                case .transformer:
+                    checkpointError = "Transformer selection failed: \(error.localizedDescription)"
+                case .vae:
+                    checkpointError = "VAE selection failed: \(error.localizedDescription)"
+                case .embeddings:
+                    checkpointError = "Embeddings file selection failed: \(error.localizedDescription)"
+                case .initialLatent:
+                    checkpointError = "Init latent selection failed: \(error.localizedDescription)"
+                case .none:
+                    checkpointError = "File selection failed: \(error.localizedDescription)"
+                }
+            }
+        }
+        .alert("Checkpoint Error", isPresented: Binding(
+            get: { checkpointError != nil },
+            set: { if !$0 { checkpointError = nil } }
+        )) {
+            Button("OK", role: .cancel) { checkpointError = nil }
+        } message: {
+            Text(checkpointError ?? "")
+        }
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -1045,127 +1491,7 @@ struct GenerationView: View {
                 }
             }
         }
-        .overlay(alignment: .topTrailing) {
-            Button {
-                dismissKeyboard()
-                showGenerationSettings = true
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.headline)
-                    .padding(10)
-                    .background(.thinMaterial, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Generation settings")
-            .padding(.top, 8)
-            .padding(.trailing, 16)
-        }
-        .sheet(isPresented: $showGenerationSettings) {
-            GenerationSettingsSheet(
-                steps: stepCountValue,
-                guidanceScale: guidanceScaleValue,
-                negativePrompt: generation.negativePrompt,
-                onChangeSteps: setStepCount(_:),
-                onChangeGuidanceScale: setGuidanceScale(_:),
-                onChangeNegativePrompt: setNegativePrompt(_:)
-            )
-        }
         .environmentObject(generation)
-    }
-}
-
-private struct GenerationSettingsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    let steps: Int
-    let guidanceScale: Double
-    let negativePrompt: String
-    var onChangeSteps: (Int) -> Void
-    var onChangeGuidanceScale: (Double) -> Void
-    var onChangeNegativePrompt: (String) -> Void
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section("Steps") {
-                    HStack {
-                        Text("Number of steps")
-                        Spacer()
-                        Text("\(steps)")
-                            .font(.body.monospacedDigit())
-                            .foregroundColor(.secondary)
-                    }
-
-                    Stepper(value: Binding(
-                        get: { steps },
-                        set: { newValue in
-                            onChangeSteps(newValue)
-                        }
-                    ), in: 1...50) {
-                        Text("Adjust steps")
-                    }
-
-                    Slider(
-                        value: Binding(
-                            get: { Double(steps) },
-                            set: { newValue in
-                                onChangeSteps(Int(newValue.rounded()))
-                            }
-                        ),
-                        in: 1...50,
-                        step: 1
-                    )
-                }
-
-                Section("Guidance") {
-                    HStack {
-                        Text("CFG scale")
-                        Spacer()
-                        Text(String(format: "%.1f", guidanceScale))
-                            .font(.body.monospacedDigit())
-                            .foregroundColor(.secondary)
-                    }
-
-                    Stepper(value: Binding(
-                        get: { guidanceScale },
-                        set: { newValue in
-                            onChangeGuidanceScale(newValue)
-                        }
-                    ), in: 0...20, step: 0.1) {
-                        Text("Adjust CFG scale")
-                    }
-
-                    Slider(
-                        value: Binding(
-                            get: { guidanceScale },
-                            set: { newValue in
-                                onChangeGuidanceScale(newValue)
-                            }
-                        ),
-                        in: 0...20,
-                        step: 0.1
-                    )
-                }
-
-                Section("Negative Prompt") {
-                    TextEditor(text: Binding(
-                        get: { negativePrompt },
-                        set: { newValue in
-                            onChangeNegativePrompt(newValue)
-                        }
-                    ))
-                    .frame(minHeight: 110)
-                }
-            }
-            .navigationTitle("Generation Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
     }
 }
 

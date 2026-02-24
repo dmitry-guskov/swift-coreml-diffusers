@@ -8,7 +8,64 @@
 
 import Foundation
 
-extension String: Error {}
+/// Copies a file or directory picked by the system document picker into a destination folder
+/// inside the app container, where it can be accessed without any security scope.
+///
+/// On iOS, security-scoped bookmarks do NOT persist security grants across app launches —
+/// only macOS supports `withSecurityScope` bookmarks. The only reliable strategy is to
+/// import (copy) the item immediately while the picker's scope is still active.
+///
+/// NSFileCoordinator is used so that iCloud placeholder files are downloaded
+/// transparently before the copy begins.
+///
+/// - Parameters:
+///   - pickerURL: Security-scoped URL returned by `fileImporter` / `UIDocumentPickerViewController`.
+///                The caller must have already called `startAccessingSecurityScopedResource()`.
+///   - folder:    Destination directory inside the app container (will be created if absent).
+///   - filename:  Optional override for the destination file/folder name.
+///                Defaults to `pickerURL.lastPathComponent`.
+/// - Returns: URL of the copy inside `folder`.
+func importExternalResource(
+    pickerURL: URL,
+    into folder: URL,
+    filename: String? = nil
+) throws -> URL {
+    let fm = FileManager.default
+    try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+
+    let destName = filename ?? pickerURL.lastPathComponent
+    let destURL = folder.appendingPathComponent(destName)
+
+    // Remove stale copy so we always get a fresh import.
+    try? fm.removeItem(at: destURL)
+
+    var coordError: NSError?
+    var copyError: Error?
+    // NSFileCoordinator handles iCloud files: it blocks until the item is
+    // fully downloaded locally before invoking the accessor block.
+    NSFileCoordinator().coordinate(
+        readingItemAt: pickerURL,
+        options: .withoutChanges,
+        error: &coordError
+    ) { srcURL in
+        do {
+            try fm.copyItem(at: srcURL, to: destURL)
+        } catch {
+            copyError = error
+        }
+    }
+    if let err = (coordError ?? copyError) { throw err }
+    return destURL
+}
+
+extension String: @retroactive Error {}
+
+extension Bundle {
+    var displayName: String? {
+        object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? object(forInfoDictionaryKey: "CFBundleName") as? String
+    }
+}
 
 extension Double {
     func formatted(_ format: String) -> String {
