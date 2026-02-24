@@ -1,0 +1,197 @@
+{
+  "": {
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/master.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/CGImage+vImage.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/CGImage+vImage.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/CGImage+vImage.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/CGImage+vImage~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/CGImage+vImage.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ControlNet.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ControlNet.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ControlNet.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ControlNet~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ControlNet.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DPMSolverMultistepScheduler.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DPMSolverMultistepScheduler.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DPMSolverMultistepScheduler.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DPMSolverMultistepScheduler~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DPMSolverMultistepScheduler.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Decoder.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Decoder.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Decoder.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Decoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Decoder.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DecoderSD3.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DecoderSD3.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DecoderSD3.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DecoderSD3~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DecoderSD3.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DiscreteFlowScheduler.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DiscreteFlowScheduler.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DiscreteFlowScheduler.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DiscreteFlowScheduler~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DiscreteFlowScheduler.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Encoder.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Encoder.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Encoder.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Encoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Encoder.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ManagedMLModel.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ManagedMLModel.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ManagedMLModel.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ManagedMLModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ManagedMLModel.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultiModalDiffusionTransformer.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultiModalDiffusionTransformer.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultiModalDiffusionTransformer.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultiModalDiffusionTransformer~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultiModalDiffusionTransformer.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultilingualTextEncoder.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultilingualTextEncoder.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultilingualTextEncoder.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultilingualTextEncoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultilingualTextEncoder.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NumPyRandomSource.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NumPyRandomSource.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NumPyRandomSource.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NumPyRandomSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NumPyRandomSource.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NvRandomSource.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NvRandomSource.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NvRandomSource.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NvRandomSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NvRandomSource.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/RandomSource.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/RandomSource.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/RandomSource.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/RandomSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/RandomSource.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ResourceManaging.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ResourceManaging.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ResourceManaging.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ResourceManaging~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ResourceManaging.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SafetyChecker.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SafetyChecker.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SafetyChecker.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SafetyChecker~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SafetyChecker.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SampleTimer.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SampleTimer.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SampleTimer.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SampleTimer~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SampleTimer.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Scheduler.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Scheduler.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Scheduler.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Scheduler~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Scheduler.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline+Resources.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline+Resources.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline+Resources.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline+Resources~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline+Resources.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline+Resources.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline+Resources.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline+Resources.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline+Resources~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline+Resources.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.Configuration.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.Configuration.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.Configuration.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.Configuration~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.Configuration.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXL+Resources.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXL+Resources.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXL+Resources.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXL+Resources~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXL+Resources.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXLPipeline.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXLPipeline.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXLPipeline.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXLPipeline~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXLPipeline.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoder.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoder.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoder.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoder~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoder.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderT5.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderT5.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderT5.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderT5~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderT5.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderXL.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderXL.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderXL.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderXL~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderXL.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TorchRandomSource.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TorchRandomSource.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TorchRandomSource.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TorchRandomSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TorchRandomSource.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Unet.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Unet.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Unet.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Unet~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Unet.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer+Reading.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer+Reading.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer+Reading.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer+Reading~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer+Reading.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer.swiftdeps"
+  },
+  "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/T5Tokenizer.swift": {
+    "dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/T5Tokenizer.d",
+    "object": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/T5Tokenizer.swift.o",
+    "swiftmodule": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/T5Tokenizer~partial.swiftmodule",
+    "swift-dependencies": "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/T5Tokenizer.swiftdeps"
+  }
+}

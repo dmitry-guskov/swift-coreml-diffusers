@@ -7,22 +7,6 @@
 //
 
 import SwiftUI
-import Combine
-
-func iosModel() -> ModelInfo {
-    guard deviceSupportsQuantization else { return ModelInfo.v21Base }
-    //if deviceHas6GBOrMore { return ModelInfo.xlmbpChunked }
-    if deviceHas6GBOrMore { return ModelInfo.xlmbpChunked }
-    return ModelInfo.v21Palettized
-}
-
-// Add this helper
-func checkpointShortName(for model: ModelInfo) -> String {
-    if model.modelId == ModelInfo.xlmbpChunked.modelId { return "xlmbpChunked" }
-    if model.modelId == ModelInfo.v21Palettized.modelId { return "v21Palettized" }
-    if model.modelId == ModelInfo.v21Base.modelId { return "v21Base" }
-    return model.modelId // fallback
-}
 
 struct LoadingView: View {
 
@@ -38,8 +22,6 @@ struct LoadingView: View {
         case error(String)
     }
     @State private var currentView: CurrentView = .loading
-    
-    @State private var stateSubscriber: Cancellable?
 
     var body: some View {
         VStack {
@@ -58,36 +40,31 @@ struct LoadingView: View {
         .environmentObject(generation)
         .onAppear {
             Task.init {
-                // ✅ Select model once, and capture its label for the progress UI
-                let selectedModel = iosModel()
-                let selectedModelName = checkpointShortName(for: selectedModel)
-
-                let loader = PipelineLoader(model: selectedModel)
-                stateSubscriber = loader.statePublisher.sink { state in
-                    DispatchQueue.main.async {
-                        switch state {
-                        case .downloading(let progress):
-                            preparationPhase = "Downloading \(selectedModelName)"
-                            preparationDetail = "First launch downloads model files to your device"
-                            downloadProgress = progress
-                        case .uncompressing:
-                            preparationPhase = "Uncompressing \(selectedModelName)"
-                            preparationDetail = "Optimizing model files for on-device inference"
-                            downloadProgress = nil
-                        case .readyOnDisk:
-                            preparationPhase = "Loading \(selectedModelName)"
-                            preparationDetail = "Warming up the generation pipeline"
-                            downloadProgress = nil
-                        default:
-                            break
-                        }
-                    }
-                }
                 do {
-                    generation.pipeline = try await loader.prepare()
+                    preparationPhase = "Validating resources"
+                    preparationDetail = "Checking Transformer, VAE, and embeddings paths"
+                    downloadProgress = nil
+
+                    preparationPhase = "Loading models"
+                    preparationDetail = "Initializing Transformer and VAE resources"
+
+                    if #available(iOS 17.0, macOS 14.0, *) {
+                        let bootstrap = ZImageBootstrapConfig(
+                            transformerURL: generation.transformerModelURL,
+                            vaeDecoderURL: generation.vaeDecoderModelURL,
+                            embeddingsURL: generation.effectiveEmbeddingsURL
+                        )
+                        let loader = ZImagePipelineLoader(config: bootstrap, computeUnits: generation.computeUnits)
+                        generation.pipeline = try loader.loadAppPipeline(runSmokeTest: false, smokeSteps: 4, smokeSeed: 42)
+                        preparationPhase = "Ready"
+                        preparationDetail = "Pipeline loaded successfully"
+                    } else {
+                        throw "ZImage test mode requires iOS 17 / macOS 14"
+                    }
                     self.currentView = .textToImage
                 } catch {
-                    self.currentView = .error("Could not load model, error: \(error)")
+                    print("[Loading] Model loading failed: \(error). Proceeding to main view for configuration.")
+                    self.currentView = .textToImage
                 }
             }
         }

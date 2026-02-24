@@ -1,0 +1,4 @@
+module StableDiffusion {
+    header "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion-Swift.h"
+    requires objc
+}

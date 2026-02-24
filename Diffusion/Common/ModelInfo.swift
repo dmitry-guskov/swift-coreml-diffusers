@@ -110,7 +110,7 @@ extension ModelInfo {
         let repo = modelId.split(separator: "/").last!
         return URL(string: "https://huggingface.co/\(modelId)/resolve/main/\(repo)_\(suffix).zip")!
     }
-    
+    /// "https://huggingface.co/apple/coreml-stable-diffusion-xl-base-ios/resolve/main/\(repo)_\(suffix).zip")
     /// Best variant for the current platform.
     /// Currently using `split_einsum` for iOS and simple performance heuristics for macOS.
     var bestURL: URL { modelURL(for: bestAttention) }

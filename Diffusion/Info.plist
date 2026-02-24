@@ -2,11 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>To be able to save generated images to your Photo Library, you’ll need to allow this.</string>
-	<key>CFBundleDisplayName</key>
-	<string>Diffusers</string>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>This app needs access to your files to load ML model weights and embeddings.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Used for model downloads.</string>
 </dict>
 </plist>

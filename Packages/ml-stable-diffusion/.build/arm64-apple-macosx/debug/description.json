@@ -1,0 +1,683 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.StableDiffusion-arm64-apple-macosx15.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/sources",
+      "importPath" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/CGImage+vImage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ControlNet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DPMSolverMultistepScheduler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Decoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DecoderSD3.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DiscreteFlowScheduler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Encoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ManagedMLModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultiModalDiffusionTransformer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultilingualTextEncoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NumPyRandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NvRandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/RandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ResourceManaging.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SafetyChecker.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SampleTimer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Scheduler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline+Resources.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline+Resources.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.Configuration.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXL+Resources.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXLPipeline.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderT5.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderXL.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TorchRandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Unet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer+Reading.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/T5Tokenizer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "StableDiffusion",
+      "moduleOutputPath" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/Modules/StableDiffusion.swiftmodule",
+      "objects" : [
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/CGImage+vImage.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ControlNet.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DPMSolverMultistepScheduler.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Decoder.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DecoderSD3.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DiscreteFlowScheduler.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Encoder.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ManagedMLModel.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultiModalDiffusionTransformer.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultilingualTextEncoder.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NumPyRandomSource.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NvRandomSource.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/RandomSource.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ResourceManaging.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SafetyChecker.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SampleTimer.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Scheduler.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline+Resources.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline+Resources.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.Configuration.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXL+Resources.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXLPipeline.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoder.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderT5.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderXL.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TorchRandomSource.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Unet.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer+Reading.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer.swift.o",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/T5Tokenizer.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx11.0",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-module-cache-path",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion-Swift.h",
+        "-swift-version",
+        "5",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g"
+      ],
+      "outputFileMapPath" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/CGImage+vImage.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ControlNet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DPMSolverMultistepScheduler.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Decoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DecoderSD3.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/DiscreteFlowScheduler.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Encoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ManagedMLModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultiModalDiffusionTransformer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/MultilingualTextEncoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NumPyRandomSource.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/NvRandomSource.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/RandomSource.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/ResourceManaging.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SafetyChecker.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/SampleTimer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Scheduler.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline+Resources.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion3Pipeline.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline+Resources.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.Configuration.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionPipeline.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXL+Resources.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusionXLPipeline.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoder.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderT5.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TextEncoderXL.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/TorchRandomSource.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/Unet.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer+Reading.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/BPETokenizer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/T5Tokenizer.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/Modules/StableDiffusion.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/CGImage+vImage.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ControlNet.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DPMSolverMultistepScheduler.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Decoder.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DecoderSD3.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DiscreteFlowScheduler.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Encoder.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ManagedMLModel.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultiModalDiffusionTransformer.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultilingualTextEncoder.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NumPyRandomSource.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NvRandomSource.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/RandomSource.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ResourceManaging.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SafetyChecker.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SampleTimer.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Scheduler.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline+Resources.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline+Resources.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.Configuration.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXL+Resources.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXLPipeline.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoder.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderT5.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderXL.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TorchRandomSource.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Unet.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer+Reading.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer.swift",
+        "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/T5Tokenizer.swift"
+      ],
+      "tempsPath" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "StableDiffusion" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "StableDiffusion",
+      "-incremental",
+      "-c",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/CGImage+vImage.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ControlNet.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DPMSolverMultistepScheduler.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Decoder.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DecoderSD3.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DiscreteFlowScheduler.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Encoder.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ManagedMLModel.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultiModalDiffusionTransformer.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultilingualTextEncoder.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NumPyRandomSource.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NvRandomSource.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/RandomSource.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ResourceManaging.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SafetyChecker.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SampleTimer.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Scheduler.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline+Resources.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline+Resources.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.Configuration.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXL+Resources.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXLPipeline.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoder.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderT5.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderXL.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TorchRandomSource.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Unet.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer+Reading.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer.swift",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/T5Tokenizer.swift",
+      "-I",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx11.0",
+      "-enable-batch-mode",
+      "-index-store-path",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-module-cache-path",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/StableDiffusion-Swift.h",
+      "-swift-version",
+      "5",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "StableDiffusion" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "enableAllTraits" : false
+  },
+  "writeCommands" : {
+    "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/CGImage+vImage.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ControlNet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DPMSolverMultistepScheduler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Decoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DecoderSD3.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/DiscreteFlowScheduler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Encoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ManagedMLModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultiModalDiffusionTransformer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/MultilingualTextEncoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NumPyRandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/NvRandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/RandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/ResourceManaging.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SafetyChecker.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/SampleTimer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Scheduler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline+Resources.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusion3Pipeline.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline+Resources.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.Configuration.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionPipeline.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXL+Resources.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/StableDiffusionXLPipeline.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoder.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderT5.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TextEncoderXL.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/TorchRandomSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/pipeline/Unet.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer+Reading.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/BPETokenizer.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/Sources/StableDiffusion/tokenizer/T5Tokenizer.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/StableDiffusion.build/sources"
+    },
+    "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/a1111/Documents/swift-tutorial-video-app/swift-coreml-diffusers/Packages/ml-stable-diffusion/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

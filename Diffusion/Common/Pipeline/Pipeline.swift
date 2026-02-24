@@ -8,26 +8,55 @@
 
 import Foundation
 import CoreML
+import CoreGraphics
 import Combine
 
 import StableDiffusion
 
+protocol AppPipeline {
+    var progressPublisher: CurrentValueSubject<StableDiffusionProgress?, Never> { get }
+
+    func generate(
+        prompt: String,
+        negativePrompt: String,
+        scheduler: StableDiffusionScheduler,
+        numInferenceSteps stepCount: Int,
+        seed: UInt32,
+        numPreviews previewCount: Int,
+        guidanceScale: Float,
+        disableSafety: Bool,
+        startingImage: CGImage?,
+        strength: Float?,
+        initialNoiseData: Data?,
+        initialNoiseShape: [Int]?,
+        interpolationBaseNoiseData: Data?,
+        interpolationBaseNoiseShape: [Int]?,
+        interpolationSeed: UInt32?,
+        interpolationAmount: Float?
+    ) throws -> GenerationResult
+
+    func setCancelled()
+}
+
 struct StableDiffusionProgress {
-    var progress: StableDiffusionPipeline.Progress
-
-    var step: Int { progress.step }
-    var stepCount: Int { progress.stepCount }
-
+    let step: Int
+    let stepCount: Int
     var currentImages: [CGImage?]
 
     init(progress: StableDiffusionPipeline.Progress, previewIndices: [Bool]) {
-        self.progress = progress
+        self.step = progress.step
+        self.stepCount = progress.stepCount
         self.currentImages = [nil]
 
-        // Since currentImages is a computed property, only access the preview image if necessary
         if progress.step < previewIndices.count, previewIndices[progress.step] {
             self.currentImages = progress.currentImages
         }
+    }
+
+    init(step: Int, stepCount: Int) {
+        self.step = step
+        self.stepCount = stepCount
+        self.currentImages = [nil]
     }
 }
 
@@ -41,7 +70,7 @@ struct GenerationResult {
     var initialNoiseShape: [Int]?
 }
 
-class Pipeline {
+class Pipeline: AppPipeline {
     let pipeline: StableDiffusionPipelineProtocol
     let maxSeed: UInt32
     

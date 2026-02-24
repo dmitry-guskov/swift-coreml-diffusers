@@ -13,6 +13,28 @@ struct StatusView: View {
     var pipelineState: Binding<PipelineState>
     
     @State private var showErrorPopover = false
+    @State private var loadingStartDate: Date?
+
+    private var pipelineReady: Bool {
+        if case .ready = pipelineState.wrappedValue {
+            return true
+        }
+        return false
+    }
+
+    private var generationRunning: Bool {
+        if case .running = generation.state {
+            return true
+        }
+        return false
+    }
+
+    private var pipelineLoading: Bool {
+        if case .loading = pipelineState.wrappedValue {
+            return true
+        }
+        return false
+    }
     
     func submit() {
         if case .running = generation.state { return }
@@ -65,14 +87,17 @@ struct StatusView: View {
             guard let progress = progress, progress.stepCount > 0 else {
                 // The first time it takes a little bit before generation starts
                 return HStack {
-                    Text("Preparing model…")
+                    Text(generation.generationProgressSnapshot.phaseText)
                     Spacer()
                 }
             }
-            let step = Int(progress.step) + 1
-            let fraction = Double(step) / Double(progress.stepCount)
+            let snapshot = generation.generationProgressSnapshot
+            let itPerSecText = snapshot.iterationsPerSecond.map { String(format: "%.2f it/s", $0) } ?? "it/s pending"
+            let etaText = snapshot.etaSeconds.map { formatDuration($0) } ?? "pending"
+            let elapsedText = formatDuration(snapshot.elapsedSeconds)
+            let percentText = String(format: "%.1f%%", snapshot.fraction * 100)
             return HStack {
-                Text("Generating \(Int(round(100*fraction)))%")
+                Text("Step \(snapshot.step)/\(snapshot.stepCount) | \(percentText) | \(itPerSecText) | ETA \(etaText) | Elapsed \(elapsedText)")
                 Spacer()
             }
         case .complete(_, let image, let lastSeed, let interval):
@@ -105,30 +130,65 @@ struct StatusView: View {
         }
     }
     
-    var body: some View {
+    @ViewBuilder
+    private func pipelineStatusView() -> some View {
         switch pipelineState.wrappedValue {
         case .downloading(let progress):
-            ProgressView("Downloading…", value: progress*100, total: 110).padding()
+            ProgressView("Downloading…", value: progress*100, total: 110)
+                .padding(.bottom, 4)
+            Text("Generate is disabled until model resources finish downloading.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         case .uncompressing:
-            ProgressView("Uncompressing…", value: 100, total: 110).padding()
+            ProgressView("Uncompressing…", value: 100, total: 110)
+                .padding(.bottom, 4)
+            Text("Generate is disabled until model resources are uncompressed.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         case .loading:
-            ProgressView("Loading…", value: 105, total: 110).padding()
+            ProgressView("Loading…", value: 105, total: 110)
+                .padding(.bottom, 4)
+            let elapsed = loadingStartDate.map { formatDuration(Date().timeIntervalSince($0)) } ?? "00:00"
+            Text("Preparing models | Transformer+VAE+embeddings | ETA pending | Elapsed \(elapsed)")
+                .font(.caption)
+                .foregroundColor(.secondary)
         case .ready:
-            VStack {
-                Button {
-                    submit()
-                } label: {
-                    Text("Generate")
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                }
-                .buttonStyle(.borderedProminent)
-                
-                AnyView(generationStatusView())
-            }
+            AnyView(generationStatusView())
         case .failed(let error):
             AnyView(errorWithDetails("Pipeline loading error", error: error))
+            Text("Select valid Transformer/VAE paths and click Reload Models.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                submit()
+            } label: {
+                Text(generationRunning ? "Generating..." : "Generate")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!pipelineReady || generationRunning)
+
+            pipelineStatusView()
+        }
+        .onAppear {
+            loadingStartDate = pipelineLoading ? Date() : nil
+        }
+        .onChange(of: pipelineLoading) { _, isLoading in
+            loadingStartDate = isLoading ? Date() : nil
+        }
+    }
+
+    private func formatDuration(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let minutes = total / 60
+        let remainder = total % 60
+        return String(format: "%02d:%02d", minutes, remainder)
     }
 }
 

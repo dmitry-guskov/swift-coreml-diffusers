@@ -45,7 +45,7 @@ final class ZImagePipelineLoader {
 
     init(
         config: ZImageBootstrapConfig,
-        computeUnits: ComputeUnits = .all
+        computeUnits: ComputeUnits = .cpuAndNeuralEngine
     ) {
         self.config = config
         self.computeUnits = computeUnits
@@ -81,7 +81,7 @@ final class ZImagePipelineLoader {
             transformerAt: config.transformerURL,
             vaeDecoderAt: config.vaeDecoderURL,
             configuration: mlConfig,
-            reduceMemory: false
+            reduceMemory: true
         )
     }
 

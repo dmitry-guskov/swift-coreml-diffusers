@@ -32,7 +32,7 @@ import CoreML
 /// DEFAULT_SCHEDULER_USE_DYNAMIC_SHIFTING = False
 /// ```
 @available(iOS 16.2, macOS 13.1, *)
-public final class DiscreteFlowScheduler: Scheduler {
+public final class ZimageDiscreteFlowScheduler: Scheduler {
 
     // MARK: - Scheduler protocol conformance
 

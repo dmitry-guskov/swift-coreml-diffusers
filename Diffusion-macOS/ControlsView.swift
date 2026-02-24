@@ -1,16 +1,18 @@
 //
-//  PromptView.swift
+//  ControlsView.swift
 //  Diffusion-macOS
 //
-//  Created by Cyril Zakka on 1/12/23.
-//  See LICENSE at https://github.com/huggingface/swift-coreml-diffusers/LICENSE
-//
 
-import Combine
 import SwiftUI
-import CompactSlider
+import UniformTypeIdentifiers
 
-/// Track a StableDiffusion Pipeline's readiness. This include actively downloading from the internet, uncompressing the downloaded zip file, actively loading into memory, ready to use or an Error state.
+private enum MacPathPickerTarget: Equatable {
+    case transformer
+    case vae
+    case embeddings
+    case initialLatent
+}
+
 enum PipelineState {
     case downloading(Double)
     case uncompressing
@@ -19,478 +21,389 @@ enum PipelineState {
     case failed(Error)
 }
 
-/// Mimics the native appearance, but labels are clickable.
-/// To be removed (adding gestures to all labels) if we observe any UI shenanigans.
-struct LabelToggleDisclosureGroupStyle: DisclosureGroupStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        VStack {
-            HStack {
-                Button {
-                    withAnimation {
-                        configuration.isExpanded.toggle()
-                    }
-                } label: {
-                    Image(systemName: configuration.isExpanded ? "chevron.down" : "chevron.right").frame(width:8, height: 8)
-                }.buttonStyle(.plain).font(.footnote).fontWeight(.semibold).foregroundColor(.gray)
-                configuration.label.onTapGesture {
-                    withAnimation {
-                        configuration.isExpanded.toggle()
-                    }
-                }
-                Spacer()
-            }
-            if configuration.isExpanded {
-                configuration.content
-            }
-        }
+private struct PathSelectionError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
+private struct BootstrapContextError: LocalizedError {
+    let summary: String
+    let transformerPath: String
+    let vaePath: String
+    let embeddingsPath: String
+    let resolutionDetails: [String]
+    let underlyingError: Error
+
+    var errorDescription: String? {
+        let detailsBlock = resolutionDetails.joined(separator: "\n")
+        return """
+        \(summary)
+        Transformer: \(transformerPath)
+        VAE: \(vaePath)
+        Embeddings: \(embeddingsPath)
+        \(detailsBlock)
+        Underlying error: \(underlyingError)
+        """
     }
 }
 
+@available(macOS 14.0, *)
 struct ControlsView: View {
     @EnvironmentObject var generation: GenerationContext
 
-    static let models = ModelInfo.MODELS
-    
-    @State private var model = Settings.shared.currentModel.modelVersion
-    @State private var disclosedModel = true
-    @State private var disclosedPrompt = true
-    @State private var disclosedGuidance = false
-    @State private var disclosedSteps = false
-    @State private var disclosedPreview = false
-    @State private var disclosedSeed = false
-    @State private var disclosedAdvanced = false
+    @State private var pipelineState: PipelineState = .loading
+    @State private var seedText: String = String(Settings.shared.seed)
+    @State private var bootstrapDone = false
+    @State private var activePathPicker: MacPathPickerTarget?
+    @State private var pendingPathPicker: MacPathPickerTarget?
 
-    // TODO: refactor download with similar code in Loading.swift (iOS)
-    @State private var stateSubscriber: Cancellable?
-    @State private var pipelineState: PipelineState = .downloading(0)
-    @State private var pipelineLoader: PipelineLoader? = nil
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("ZImage Checkpoint Test", systemImage: "cpu")
+                .font(.headline)
+            Text("Path mode: pick Transformer and VAE locations directly. VAE can remain fixed while swapping Transformer checkpoints.")
+                .font(.caption)
+                .foregroundColor(.secondary)
 
-    // TODO: make this computed, and observable, and easy to read
-    @State private var mustShowSafetyCheckerDisclaimer = false
-    @State private var mustShowModelDownloadDisclaimer = false      // When changing advanced settings
+            Divider()
 
-    @State private var showModelsHelp = false
-    @State private var showPromptsHelp = false
-    @State private var showGuidanceHelp = false
-    @State private var showStepsHelp = false
-    @State private var showPreviewHelp = false
-    @State private var showSeedHelp = false
-    @State private var showAdvancedHelp = false
-    @State private var positiveTokenCount: Int = 0
-    @State private var negativeTokenCount: Int = 0
-
-    let maxSeed: UInt32 = UInt32.max
-    private var textFieldLabelSeed: String { generation.seed < 1 ? "Random Seed" : "Seed" }
-    
-    var modelFilename: String? {
-        guard let pipelineLoader = pipelineLoader else { return nil }
-        let selectedURL = pipelineLoader.compiledURL
-        guard FileManager.default.fileExists(atPath: selectedURL.path) else { return nil }
-        return selectedURL.path
-    }
-    
-    fileprivate func updateSafetyCheckerState() {
-        mustShowSafetyCheckerDisclaimer = generation.disableSafety && !Settings.shared.safetyCheckerDisclaimerShown
-    }
-    
-    fileprivate func updateComputeUnitsState() {
-        Settings.shared.userSelectedComputeUnits = generation.computeUnits
-        modelDidChange(model: Settings.shared.currentModel)
-    }
-    
-    fileprivate func resetComputeUnitsState() {
-        generation.computeUnits = Settings.shared.userSelectedComputeUnits ?? ModelInfo.defaultComputeUnits
-    }
-
-    fileprivate func modelDidChange(model: ModelInfo) {
-        guard pipelineLoader?.model != model || pipelineLoader?.computeUnits != generation.computeUnits else {
-            print("Reusing same model \(model) with units \(generation.computeUnits)")
-            return
-        }
-
-        if !model.supportsNeuralEngine && generation.computeUnits == .cpuAndNeuralEngine {
-            // Reset compute units to GPU if Neural Engine is not supported
-            Settings.shared.userSelectedComputeUnits = .cpuAndGPU
-            resetComputeUnitsState()
-            print("Neural Engine not supported for model \(model), switching to GPU")
-        } else {
-            resetComputeUnitsState()
-        }
-
-        Settings.shared.currentModel = model
-
-        pipelineLoader?.cancel()
-        pipelineState = .downloading(0)
-        Task.init {
-            let loader = PipelineLoader(model: model, computeUnits: generation.computeUnits, maxSeed: maxSeed)
-            self.pipelineLoader = loader
-            stateSubscriber = loader.statePublisher.sink { state in
-                DispatchQueue.main.async {
-                    switch state {
-                    case .downloading(let progress):
-                        pipelineState = .downloading(progress)
-                    case .uncompressing:
-                        pipelineState = .uncompressing
-                    case .readyOnDisk:
-                        pipelineState = .loading
-                    case .failed(let error):
-                        pipelineState = .failed(error)
-                    default:
-                        break
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Button("Select Transformer Path") {
+                        pendingPathPicker = .transformer
+                        activePathPicker = .transformer
                     }
+                    .buttonStyle(.bordered)
+                    // if generation.transformerModelPath != nil {
+                    //     Button("Use Bundled Transformer") {
+                    //         generation.setTransformerModelURL(nil)
+                    //         Task { await bootstrapPipeline() }
+                    //     }
+                    //     .buttonStyle(.bordered)
+                    // }
                 }
+
+                HStack {
+                    Button("Select VAE Path") {
+                        pendingPathPicker = .vae
+                        activePathPicker = .vae
+                    }
+                    .buttonStyle(.bordered)
+                    // if generation.vaeDecoderPath != nil {
+                    //     Button("Use Bundled VAE") {
+                    //         generation.setVaeDecoderModelURL(nil)
+                    //         Task { await bootstrapPipeline() }
+                    //     }
+                    //     .buttonStyle(.bordered)
+                    // }
+                }
+
+                Button("Reload Models") {
+                    Task { await bootstrapPipeline() }
+                }
+                .buttonStyle(.bordered)
+
+                Text("Transformer: \(generation.transformerModelPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Bundled ZImageTurbo_TransformerBackbone.mlmodelc")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("VAE: \(generation.vaeDecoderPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Bundled VAEDecoder.mlmodelc")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                // Text("Chosen Transformer Path: \(generation.transformerModelPath ?? "Bundled ZImageTurbo_TransformerBackbone.mlmodelc")")
+                //     .font(.caption2)
+                //     .foregroundColor(.secondary)
+                //     .textSelection(.enabled)
+                // Text("Chosen VAE Path: \(generation.vaeDecoderPath ?? "Bundled VAEDecoder.mlmodelc")")
+                //     .font(.caption2)
+                //     .foregroundColor(.secondary)
+                //     .textSelection(.enabled)
+                Text("Resolved Transformer Path: \(generation.transformerModelURL.path)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+                Text("Resolved VAE Path: \(generation.vaeDecoderModelURL.path)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
             }
-            do {
-                generation.pipeline = try await loader.prepare()
-                pipelineState = .ready
-            } catch {
-                print("Could not load model, error: \(error)")
-                pipelineState = .failed(error)
-            }
-        }
-    }
-    
-    fileprivate func isModelDownloaded(_ model: ModelInfo, computeUnits: ComputeUnits? = nil) -> Bool {
-        PipelineLoader(model: model, computeUnits: computeUnits ?? generation.computeUnits).ready
-    }
-    
-    fileprivate func modelLabel(_ model: ModelInfo) -> Text {
-        let downloaded = isModelDownloaded(model)
-        let prefix = downloaded ? "● " : "◌ "  //"○ "
-        return Text(prefix).foregroundColor(downloaded ? .accentColor : .secondary) + Text(model.modelVersion)
-    }
-    
-    fileprivate func prompts() -> some View {
-        VStack {
-            Spacer()
-            PromptTextField(text: $generation.positivePrompt, isPositivePrompt: true, model: $model)
-                .onChange(of: generation.positivePrompt) { prompt in
+
+            runConfigurationSection
+            PromptTextField(text: $generation.positivePrompt, isPositivePrompt: true, model: .constant("zimage"))
+                .onChange(of: generation.positivePrompt) { _, prompt in
                     Settings.shared.prompt = prompt
                 }
-                .padding(.top, 5)
-            Spacer()
-            PromptTextField(text: $generation.negativePrompt, isPositivePrompt: false, model: $model)
-                .onChange(of: generation.negativePrompt) { negativePrompt in
-                    Settings.shared.negativePrompt = negativePrompt
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Button("Select Embeddings Path") {
+                        pendingPathPicker = .embeddings
+                        activePathPicker = .embeddings
+                    }
+                    .buttonStyle(.bordered)
+                    if generation.externalEmbeddingsPath != nil {
+                        Button("Clear Embeddings Path") {
+                            generation.setExternalEmbeddingsURL(nil)
+                            Task { await bootstrapPipeline() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                 }
-                .padding(.bottom, 5)
-            Spacer()
-        }
-        .frame(maxHeight: .infinity)
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading) {
-            
-            Label("Generation Options", systemImage: "gearshape.2")
-                .font(.headline)
-                .fontWeight(.bold)
-            Divider()
-            
-            ScrollView {
-                Group {
-                    DisclosureGroup(isExpanded: $disclosedModel) {
-                        let revealOption = "-- reveal --"
-                        Picker("", selection: $model) {
-                            ForEach(Self.models, id: \.modelVersion) {
-                                modelLabel($0)
-                            }
-                            Text("Reveal in Finder…").tag(revealOption)
-                        }
-                        .onChange(of: model) { selection in
-                            guard selection != revealOption else {
-                                // The reveal option has been requested - open the models folder in Finder
-                                NSWorkspace.shared.selectFile(modelFilename, inFileViewerRootedAtPath: PipelineLoader.models.path)
-                                model = Settings.shared.currentModel.modelVersion
-                                return
-                            }
-                            guard let model = ModelInfo.from(modelVersion: selection) else { return }
-                            modelDidChange(model: model)
-                        }
-                    } label: {
-                        HStack {
-                            Label("Model from Hub", systemImage: "cpu").foregroundColor(.secondary)
-                            Spacer()
-                            if disclosedModel {
-                                Button {
-                                    showModelsHelp.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.plain)
-                                // Or maybe use .sheet instead
-                                .sheet(isPresented: $showModelsHelp) {
-                                    modelsHelp($showModelsHelp)
-                                }
-                            }
-                        }.foregroundColor(.secondary)
-                    }
-                    Divider()
-                    
-                    DisclosureGroup(isExpanded: $disclosedPrompt) {
-                        Group {
-                            prompts()
-                        }.padding(.leading, 10)
-                    } label: {
-                        HStack {
-                            Label("Prompts", systemImage: "text.quote").foregroundColor(.secondary)
-                            Spacer()
-                            if disclosedPrompt {
-                                Button {
-                                    showPromptsHelp.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.plain)
-                                // Or maybe use .sheet instead
-                                .popover(isPresented: $showPromptsHelp, arrowEdge: .trailing) {
-                                    promptsHelp($showPromptsHelp)
-                                }
-                            }
-                        }.foregroundColor(.secondary)
-                    }
-                    Divider()
+                Text(embeddingsStatusText())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Text encoder folder is not used yet; embeddings tensor file is required.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
-                    let guidanceScaleValue = generation.guidanceScale.formatted("%.1f")
-                    DisclosureGroup(isExpanded: $disclosedGuidance) {
-                        CompactSlider(value: $generation.guidanceScale, in: 0...20, step: 0.5) {
-                            Text("Guidance Scale")
-                            Spacer()
-                            Text(guidanceScaleValue)
-                        }
-                        .onChange(of: generation.guidanceScale) { guidanceScale in
-                            Settings.shared.guidanceScale = guidanceScale
-                        }
-                        .padding(.leading, 10)
-                    } label: {
-                        HStack {
-                            Label("Guidance Scale", systemImage: "scalemass").foregroundColor(.secondary)
-                            Spacer()
-                            if disclosedGuidance {
-                                Button {
-                                    showGuidanceHelp.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.plain)
-                                // Or maybe use .sheet instead
-                                .popover(isPresented: $showGuidanceHelp, arrowEdge: .trailing) {
-                                    guidanceHelp($showGuidanceHelp)
-                                }
-                            } else {
-                                Text(guidanceScaleValue)
-                            }
-                        }.foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Button("Select Init Latent Path") {
+                        pendingPathPicker = .initialLatent
+                        activePathPicker = .initialLatent
                     }
+                    .buttonStyle(.bordered)
+                    if generation.initialLatentPath != nil {
+                        Button("Clear Init Latent Path") {
+                            generation.setInitialLatentURL(nil)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                Text(initialLatentStatusText())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Expected format: raw Float32 .bin, shape [1,16,64,64].")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Resolved Init Latent Path: \(generation.initialLatentFileURL?.path ?? "Not set")")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
 
-                    DisclosureGroup(isExpanded: $disclosedSteps) {
-                        CompactSlider(value: $generation.steps, in: 1...150, step: 1) {
+            VStack(alignment: .leading, spacing: 8) {
+                        HStack {
                             Text("Steps")
                             Spacer()
                             Text("\(Int(generation.steps))")
-                        }
-                        .onChange(of: generation.steps) { steps in
-                            Settings.shared.stepCount = steps
-                        }
-                        .padding(.leading, 10)
-                    } label: {
-                        HStack {
-                            Label("Step count", systemImage: "square.3.layers.3d.down.left").foregroundColor(.secondary)
-                            Spacer()
-                            if disclosedSteps {
-                                Button {
-                                    showStepsHelp.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.plain)
-                                .popover(isPresented: $showStepsHelp, arrowEdge: .trailing) {
-                                    stepsHelp($showStepsHelp)
-                                }
-                            } else {
-                                Text("\(Int(generation.steps))")
-                            }
-                        }.foregroundColor(.secondary)
-                    }
-
-                    DisclosureGroup(isExpanded: $disclosedPreview) {
-                        CompactSlider(value: $generation.previews, in: 0...25, step: 1) {
-                            Text("Previews")
-                            Spacer()
-                            Text("\(Int(generation.previews))")
-                        }
-                        .onChange(of: generation.previews) { previews in
-                            Settings.shared.previewCount = previews
-                        }
-                        .padding(.leading, 10)
-                    } label: {
-                        HStack {
-                            Label("Preview count", systemImage: "eye.square").foregroundColor(.secondary)
-                            Spacer()
-                            if disclosedPreview {
-                                Button {
-                                    showPreviewHelp.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.plain)
-                                .popover(isPresented: $showPreviewHelp, arrowEdge: .trailing) {
-                                    previewHelp($showPreviewHelp)
-                                }
-                            } else {
-                                Text("\(Int(generation.previews))")
-                            }
-                        }.foregroundColor(.secondary)
-                    }
-
-                    DisclosureGroup(isExpanded: $disclosedSeed) {
-                        discloseSeedContent()
-                            .padding(.leading, 10)
-                    } label: {
-                        HStack {
-                            Label(textFieldLabelSeed, systemImage: "leaf").foregroundColor(.secondary)
-                            Spacer()
-                            if disclosedSeed {
-                                Button {
-                                    showSeedHelp.toggle()
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                                .buttonStyle(.plain)
-                                .popover(isPresented: $showSeedHelp, arrowEdge: .trailing) {
-                                    seedHelp($showSeedHelp)
-                                }
-                            } else {
-                                Text(generation.seed.formatted(.number.grouping(.never)))
-                            }
-                        }
                         .foregroundColor(.secondary)
-                    }
-
-                    if Capabilities.hasANE {
-                        Divider()
-                        let isNeuralEngineDisabled = !(ModelInfo.from(modelVersion: model)?.supportsNeuralEngine ?? true)
-                        DisclosureGroup(isExpanded: $disclosedAdvanced) {
-                            HStack {
-                                Picker(selection: $generation.computeUnits, label: Text("Use")) {
-                                    Text("GPU").tag(ComputeUnits.cpuAndGPU)
-                                    Text("Neural Engine\(isNeuralEngineDisabled ? " (unavailable)" : "")")
-                                        .foregroundColor(isNeuralEngineDisabled ? .secondary : .primary)
-                                        .tag(ComputeUnits.cpuAndNeuralEngine)
-                                    Text("GPU and Neural Engine").tag(ComputeUnits.all)
-                                }.pickerStyle(.radioGroup).padding(.leading)
-                                Spacer()
-                            }
-                            .onChange(of: generation.computeUnits) { units in
-                                guard let currentModel = ModelInfo.from(modelVersion: model) else { return }
-                                if isNeuralEngineDisabled && units == .cpuAndNeuralEngine {
-                                    resetComputeUnitsState()
-                                    return
-                                }
-                                let variantDownloaded = isModelDownloaded(currentModel, computeUnits: units)
-                                if variantDownloaded {
-                                    updateComputeUnitsState()
-                                } else {
-                                    mustShowModelDownloadDisclaimer.toggle()
-                                }
-                            }
-                            .alert("Download Required", isPresented: $mustShowModelDownloadDisclaimer, actions: {
-                                Button("Cancel", role: .destructive) { resetComputeUnitsState() }
-                                Button("Download", role: .cancel) { updateComputeUnitsState() }
-                            }, message: {
-                                Text("This setting requires a new version of the selected model.")
-                            })
-                        } label: {
-                            HStack {
-                                Label("Advanced", systemImage: "terminal").foregroundColor(.secondary)
-                                Spacer()
-                                if disclosedAdvanced {
-                                    Button {
-                                        showAdvancedHelp.toggle()
-                                    } label: {
-                                        Image(systemName: "info.circle")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .popover(isPresented: $showAdvancedHelp, arrowEdge: .trailing) {
-                                        advancedHelp($showAdvancedHelp)
-                                    }
-                                }
-                            }.foregroundColor(.secondary)
-                        }
-                    }
                 }
-            }
-            .disclosureGroupStyle(LabelToggleDisclosureGroupStyle())
-            
-            Toggle("Disable Safety Checker", isOn: $generation.disableSafety).onChange(of: generation.disableSafety) { value in
-                updateSafetyCheckerState()
-            }
-                .popover(isPresented: $mustShowSafetyCheckerDisclaimer) {
-                        VStack {
-                            Text("You have disabled the safety checker").font(.title).padding(.top)
-                            Text("""
-                                 Please, ensure that you abide \
-                                 by the conditions of the Stable Diffusion license and do not expose \
-                                 unfiltered results to the public.
-                                 """)
-                            .lineLimit(nil)
-                            .padding(.all, 5)
-                            Button {
-                                Settings.shared.safetyCheckerDisclaimerShown = true
-                                updateSafetyCheckerState()
-                            } label: {
-                                Text("I Accept").frame(maxWidth: 200)
-                            }
-                            .padding(.bottom)
-                        }
-                        .frame(minWidth: 400, idealWidth: 400, maxWidth: 400)
-                        .fixedSize()
+                Stepper("", value: Binding(
+                    get: { Int(generation.steps) },
+                    set: {
+                        let clamped = max(1, min(50, $0))
+                        generation.steps = Double(clamped)
+                        Settings.shared.stepCount = Double(clamped)
                     }
+                ), in: 1...50)
+                .labelsHidden()
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                    Text("Seed")
+                                Spacer()
+                    TextField("0", text: $seedText)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 140)
+                }
+                Text("Seed 0 means random seed on each run.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .onChange(of: seedText) { _, newValue in
+                let filtered = newValue.filter { "0123456789".contains($0) }
+                if filtered != newValue {
+                    seedText = filtered
+                }
+                let seed = UInt32(filtered) ?? 0
+                generation.seed = seed
+                Settings.shared.seed = seed
+            }
+
             Divider()
-            
             StatusView(pipelineState: $pipelineState)
         }
         .padding()
         .onAppear {
-            modelDidChange(model: ModelInfo.from(modelVersion: model) ?? ModelInfo.v2Base)
+            guard !bootstrapDone else { return }
+            bootstrapDone = true
+            Task {
+                await bootstrapPipeline()
+            }
+        }
+        .fileImporter(
+            isPresented: Binding(
+                get: { activePathPicker != nil },
+                set: { if !$0 { activePathPicker = nil } }
+            ),
+            allowedContentTypes: {
+                switch pendingPathPicker ?? activePathPicker {
+                case .transformer, .vae:
+                    return [.item]
+                case .embeddings, .initialLatent:
+                    return [.data]
+                case .none:
+                    return [.item]
+                }
+            }(),
+            allowsMultipleSelection: false
+        ) { result in
+            let picker = pendingPathPicker ?? activePathPicker
+            activePathPicker = nil
+            pendingPathPicker = nil
+            switch result {
+            case .success(let urls):
+                guard let first = urls.first else { return }
+                switch picker {
+                case .transformer:
+                    Task { @MainActor in
+                        applyModelSelection(url: first, target: .transformer)
+                    }
+                case .vae:
+                    Task { @MainActor in
+                        applyModelSelection(url: first, target: .vae)
+                    }
+                case .embeddings:
+                    Task { @MainActor in
+                        generation.setExternalEmbeddingsURL(first)
+                        await bootstrapPipeline()
+                    }
+                case .initialLatent:
+                    Task { @MainActor in
+                        generation.setInitialLatentURL(first)
+                    }
+                case .none:
+                    return
+                }
+            case .failure(let error):
+                pipelineState = .failed(error)
+            }
         }
     }
-    
-    fileprivate func discloseSeedContent() -> some View {
-        let seedBinding = Binding<String>(
-            get: {
-                String(generation.seed)
-            },
-            set: { newValue in
-                if let seed = UInt32(newValue) {
-                    generation.seed = seed
-                    Settings.shared.seed = seed
-                } else {
-                    generation.seed = 0
-                    Settings.shared.seed = 0
-                }
+
+    @MainActor
+    private func bootstrapPipeline() async {
+        pipelineState = .loading
+        do {
+            let transformerURL = generation.transformerModelURL
+            let vaeURL = generation.vaeDecoderModelURL
+            let embeddingsURL = generation.effectiveEmbeddingsURL
+            let bootstrap = ZImageBootstrapConfig(
+                transformerURL: transformerURL,
+                vaeDecoderURL: vaeURL,
+                embeddingsURL: embeddingsURL
+            )
+            let loader = ZImagePipelineLoader(config: bootstrap, computeUnits: generation.computeUnits)
+            generation.pipeline = try loader.loadAppPipeline(runSmokeTest: false, smokeSteps: 4, smokeSeed: 42)
+            pipelineState = .ready
+        } catch {
+            pipelineState = .failed(
+                BootstrapContextError(
+                    summary: "Failed to load pipeline with current resolved paths.",
+                    transformerPath: generation.transformerModelURL.path,
+                    vaePath: generation.vaeDecoderModelURL.path,
+                    embeddingsPath: generation.effectiveEmbeddingsURL.path,
+                    resolutionDetails: [
+                        "Transformer detail: \(generation.transformerPathResolutionDetail)",
+                        "VAE detail: \(generation.vaePathResolutionDetail)",
+                        "Embeddings detail: \(generation.embeddingsPathResolutionDetail)"
+                    ],
+                    underlyingError: error
+                )
+            )
+        }
+    }
+
+    @MainActor
+    private func applyModelSelection(url: URL, target: MacPathPickerTarget) {
+        guard validateSelectedModelDirectory(url) else {
+            let modelName = (target == .transformer) ? "Transformer" : "VAE"
+            pipelineState = .failed(PathSelectionError(message: "\(modelName) selection must be a readable .mlmodelc directory."))
+            return
+        }
+
+        switch target {
+        case .transformer:
+            generation.setTransformerModelURL(url)
+            let resolved = generation.transformerModelURL.standardizedFileURL.path
+            guard resolved == url.standardizedFileURL.path else {
+                pipelineState = .failed(
+                    PathSelectionError(
+                        message: "Selected Transformer path did not persist. Resolved path is \(resolved)."
+                    )
+                )
+                return
             }
-        )
-        
-        return HStack {
-            TextField("", text: seedBinding)
-                .multilineTextAlignment(.trailing)
-                .onChange(of: seedBinding.wrappedValue, perform: { newValue in
-                    if let seed = UInt32(newValue) {
-                        generation.seed = seed
-                        Settings.shared.seed = seed
-                    } else {
-                        generation.seed = 0
-                        Settings.shared.seed = 0
-                    }
-                })
-                .onReceive(Just(seedBinding.wrappedValue)) { newValue in
-                    let filtered = newValue.filter { "0123456789".contains($0) }
-                    if filtered != newValue {
-                        seedBinding.wrappedValue = filtered
-                    }
-                }
-            Stepper("", value: $generation.seed, in: 0...UInt32.max)
+        case .vae:
+            generation.setVaeDecoderModelURL(url)
+            let resolved = generation.vaeDecoderModelURL.standardizedFileURL.path
+            guard resolved == url.standardizedFileURL.path else {
+                pipelineState = .failed(
+                    PathSelectionError(
+                        message: "Selected VAE path did not persist. Resolved path is \(resolved)."
+                    )
+                )
+                return
+            }
+        case .embeddings:
+            return
+        case .initialLatent:
+            return
+        }
+
+        Task { await bootstrapPipeline() }
+    }
+
+    private func validateSelectedModelDirectory(_ url: URL) -> Bool {
+        guard url.pathExtension.lowercased() == "mlmodelc" else {
+            return false
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return false
+        }
+        let metadataPath = url.appending(path: "metadata.json").path
+        return FileManager.default.fileExists(atPath: metadataPath)
+    }
+
+    private func embeddingsStatusText() -> String {
+        if let path = generation.externalEmbeddingsPath, !path.isEmpty {
+            return "Using external embeddings: \(URL(fileURLWithPath: path).lastPathComponent)"
+        }
+        return "Using bundled embeddings file."
+    }
+
+    private func initialLatentStatusText() -> String {
+        if let path = generation.initialLatentPath, !path.isEmpty {
+            return "Using initial latent file: \(URL(fileURLWithPath: path).lastPathComponent)"
+        }
+        return "No initial latent file selected."
+    }
+
+    private var runConfigurationSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Run Configuration")
+                .font(.headline)
+            Text("Scheduler: \(generation.scheduler.rawValue)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("CFG: \(String(format: "%.2f", generation.guidanceScale))")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("Output: 512 x 512 (fixed)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("Latents: channels=16, size=64 x 64 (fixed)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("Steps: \(Int(generation.steps)) | Seed: \(generation.seed)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("Compute Units: \(String(describing: generation.computeUnits))")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 }
