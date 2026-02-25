@@ -164,22 +164,60 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
     // MARK: - ResourceManaging
 
     public func loadResources() throws {
+        logMemory("ZImagePipeline.loadResources.start")
         if reduceMemory {
+            print("[ZImagePipeline] loadResources: reduceMemory=true, using prewarm")
             try prewarmResources()
         } else {
+            print("[ZImagePipeline] loadResources: reduceMemory=false, loading both models")
+            logMemory("ZImagePipeline.loadResources.beforeDit")
             try dit.loadResources()
+            logMemory("ZImagePipeline.loadResources.afterDit")
             try vae.loadResources()
+            logMemory("ZImagePipeline.loadResources.afterVae")
         }
+        logMemory("ZImagePipeline.loadResources.complete")
     }
 
     public func unloadResources() {
+        logMemory("ZImagePipeline.unloadResources.start")
         dit.unloadResources()
+        logMemory("ZImagePipeline.unloadResources.afterDit")
         vae.unloadResources()
+        logMemory("ZImagePipeline.unloadResources.complete")
     }
 
     public func prewarmResources() throws {
-        try dit.prewarmResources()
-        try vae.prewarmResources()
+        logMemory("ZImagePipeline.prewarmResources.start")
+        
+        // Prewarm DiT in its own autoreleasepool to ensure memory release
+        print("[ZImagePipeline] Prewarming DiT...")
+        try autoreleasepool {
+            try dit.prewarmResources()
+        }
+        logMemory("ZImagePipeline.prewarmResources.afterDit")
+        
+        // Prewarm VAE separately after DiT memory is released
+        print("[ZImagePipeline] Prewarming VAE...")
+        try autoreleasepool {
+            try vae.prewarmResources()
+        }
+        logMemory("ZImagePipeline.prewarmResources.complete")
+    }
+    
+    private func logMemory(_ checkpoint: String) {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        
+        if result == KERN_SUCCESS {
+            let usedMB = Double(info.resident_size) / 1_048_576
+            print("[Memory] \(checkpoint): \(String(format: "%.1f", usedMB)) MB")
+        }
     }
 
     // MARK: - Image generation
@@ -188,10 +226,13 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         configuration config: ZImageConfiguration,
         progressHandler: (ZImageProgress) -> Bool = { _ in true }
     ) throws -> [CGImage?] {
+        logMemory("ZImagePipeline.generateImages.start")
         let debugDirectory = try prepareDebugDirectoryIfNeeded(config: config)
 
         // Load pre-computed text embeddings from file
+        logMemory("ZImagePipeline.generateImages.beforeLoadEmbeddings")
         let hiddenStates = try loadEmbeddings(from: config.embeddingsURL)
+        logMemory("ZImagePipeline.generateImages.afterLoadEmbeddings")
         guard hiddenStates.shape == expectedEmbeddingShape else {
             throw Error.unexpectedEmbeddingsShape(actual: hiddenStates.shape, expected: expectedEmbeddingShape)
         }
@@ -204,6 +245,7 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
 
         // Generate random initial latent noise
         var latent = try generateLatentSample(configuration: config, scheduler: scheduler)
+        logMemory("ZImagePipeline.generateImages.afterLatentSample")
         if config.debugEnabled && config.debugSaveInitialLatent {
             try writeDebugTensor(
                 latent,
@@ -218,86 +260,93 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         // Will hold the denoised intermediate for the decoder
         var denoisedLatent = latent
 
-        // De-noising loop
+        // De-noising loop with autoreleasepool for memory optimization
         let timeSteps: [Int] = scheduler.calculateTimesteps(strength: nil)
         for (step, t) in timeSteps.enumerated() {
-            if config.debugEnabled {
-                logFiniteStats(
-                    latent,
-                    label: "latent_before_dit",
-                    timestep: t,
-                    stepIndex: step
-                )
-            }
+            let shouldContinue: Bool = try autoreleasepool {
+                if config.debugEnabled {
+                    logFiniteStats(
+                        latent,
+                        label: "latent_before_dit",
+                        timestep: t,
+                        stepIndex: step
+                    )
+                }
 
-            // Predict noise residual conditioned on text embeddings
-            let noise = try dit.predictNoise(
-                latents: [latent],
-                timeStep: t,
-                hiddenStates: hiddenStates
-            )
-            if config.debugEnabled {
-                logFiniteStats(
-                    noise[0],
-                    label: "dit_output",
-                    timestep: t,
-                    stepIndex: step
+                // Predict noise residual conditioned on text embeddings
+                let noise = try dit.predictNoise(
+                    latents: [latent],
+                    timeStep: t,
+                    hiddenStates: hiddenStates
                 )
-            }
-            if config.debugEnabled && config.debugSaveDitOutputEachStep {
-                try writeDebugTensor(
-                    noise[0],
-                    kind: "dit_output",
-                    timestep: t,
-                    stepIndex: step,
-                    seed: config.seed,
-                    outputDirectory: debugDirectory
+                if config.debugEnabled {
+                    logFiniteStats(
+                        noise[0],
+                        label: "dit_output",
+                        timestep: t,
+                        stepIndex: step
+                    )
+                }
+                if config.debugEnabled && config.debugSaveDitOutputEachStep {
+                    try writeDebugTensor(
+                        noise[0],
+                        kind: "dit_output",
+                        timestep: t,
+                        stepIndex: step,
+                        seed: config.seed,
+                        outputDirectory: debugDirectory
+                    )
+                }
+
+                // Scheduler step: compute previous latent sample
+                latent = scheduler.step(
+                    output: noise[0],
+                    timeStep: t,
+                    sample: latent
                 )
-            }
+                if config.debugEnabled {
+                    logFiniteStats(
+                        latent,
+                        label: "latent_after_scheduler",
+                        timestep: t,
+                        stepIndex: step
+                    )
+                }
+                if config.debugEnabled && config.debugSaveLatentAfterSchedulerEachStep {
+                    try writeDebugTensor(
+                        latent,
+                        kind: "latent_after_step",
+                        timestep: t,
+                        stepIndex: step,
+                        seed: config.seed,
+                        outputDirectory: debugDirectory
+                    )
+                }
 
-            // Scheduler step: compute previous latent sample
-            latent = scheduler.step(
-                output: noise[0],
-                timeStep: t,
-                sample: latent
-            )
-            if config.debugEnabled {
-                logFiniteStats(
-                    latent,
-                    label: "latent_after_scheduler",
-                    timestep: t,
-                    stepIndex: step
+                denoisedLatent = scheduler.modelOutputs.last ?? latent
+
+                let currentSample = config.useDenoisedIntermediates ? denoisedLatent : latent
+
+                // Report progress
+                let progress = ZImageProgress(
+                    pipeline: self,
+                    step: step,
+                    stepCount: timeSteps.count,
+                    currentLatentSample: currentSample
                 )
+                return progressHandler(progress)
             }
-            if config.debugEnabled && config.debugSaveLatentAfterSchedulerEachStep {
-                try writeDebugTensor(
-                    latent,
-                    kind: "latent_after_step",
-                    timestep: t,
-                    stepIndex: step,
-                    seed: config.seed,
-                    outputDirectory: debugDirectory
-                )
-            }
-
-            denoisedLatent = scheduler.modelOutputs.last ?? latent
-
-            let currentSample = config.useDenoisedIntermediates ? denoisedLatent : latent
-
-            // Report progress
-            let progress = ZImageProgress(
-                pipeline: self,
-                step: step,
-                stepCount: timeSteps.count,
-                currentLatentSample: currentSample
-            )
-            if !progressHandler(progress) {
+            if !shouldContinue {
                 return []
             }
         }
 
+        logMemory("ZImagePipeline.generateImages.afterDenoisingLoop")
+        
         if reduceMemory {
+            logMemory("ZImagePipeline.generateImages.beforeDitUnload")
             dit.unloadResources()
+            logMemory("ZImagePipeline.generateImages.afterDitUnload")
         }
 
         if config.debugEnabled && config.debugSkipVaeDecode {
@@ -313,7 +362,10 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         }
 
         // Decode the final latent to an image
-        return try decodeToImages([denoisedLatent], configuration: config)
+        logMemory("ZImagePipeline.generateImages.beforeDecode")
+        let images = try decodeToImages([denoisedLatent], configuration: config)
+        logMemory("ZImagePipeline.generateImages.afterDecode")
+        return images
     }
 
     // MARK: - Latent generation
@@ -339,11 +391,9 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
             return MLShapedArray<Float32>(scalars: floats, shape: expectedLatentShape)
         }
 
-        var sampleShape = dit.latentSampleShape
-        sampleShape[0] = 1
-        guard sampleShape == expectedLatentShape else {
-            throw Error.unexpectedLatentShape(actual: sampleShape, expected: expectedLatentShape)
-        }
+        // Use expected shape directly to avoid triggering early model load
+        // The model shape validation happens lazily during first prediction
+        let sampleShape = expectedLatentShape
 
         let stdev = scheduler.initNoiseSigma
         var random = randomSource(from: config.rngType, seed: config.seed)

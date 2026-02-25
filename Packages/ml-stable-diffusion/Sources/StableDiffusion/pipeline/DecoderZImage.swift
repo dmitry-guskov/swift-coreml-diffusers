@@ -165,12 +165,16 @@ public struct AutoencoderKLZImage: ResourceManaging {
 
     public func prewarmResources() throws {
         if let enc = encoderModel {
-            try enc.loadResources()
-            enc.unloadResources()
+            try autoreleasepool {
+                try enc.loadResources()
+                enc.unloadResources()
+            }
         }
         if let dec = decoderModel {
-            try dec.loadResources()
-            dec.unloadResources()
+            try autoreleasepool {
+                try dec.loadResources()
+                dec.unloadResources()
+            }
         }
     }
 

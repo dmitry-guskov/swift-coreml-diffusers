@@ -45,7 +45,7 @@ final class ZImagePipelineLoader {
 
     init(
         config: ZImageBootstrapConfig,
-        computeUnits: ComputeUnits = .cpuAndNeuralEngine
+        computeUnits: ComputeUnits = .cpuOnly
     ) {
         self.config = config
         self.computeUnits = computeUnits
@@ -75,20 +75,27 @@ final class ZImagePipelineLoader {
     }
 
     private func loadUnchecked() throws -> ZImagePipeline {
+        print("[PipelineLoader] loadUnchecked.start")
         let mlConfig = MLModelConfiguration()
         mlConfig.computeUnits = computeUnits
-        return try ZImagePipeline(
+        print("[PipelineLoader] Creating ZImagePipeline with computeUnits=\(computeUnits)")
+        let pipeline = try ZImagePipeline(
             transformerAt: config.transformerURL,
             vaeDecoderAt: config.vaeDecoderURL,
             configuration: mlConfig,
             reduceMemory: true
         )
+        print("[PipelineLoader] loadUnchecked.pipelineCreated")
+        return pipeline
     }
 
     func load() throws -> ZImagePipeline {
-        try withResourceAccess {
+        print("[PipelineLoader] load.start")
+        return try withResourceAccess {
             try validateResources()
-            return try loadUnchecked()
+            let pipeline = try loadUnchecked()
+            print("[PipelineLoader] load.complete")
+            return pipeline
         }
     }
 
@@ -97,29 +104,46 @@ final class ZImagePipelineLoader {
         smokeSteps: Int = 4,
         smokeSeed: UInt32 = 42
     ) throws -> AppPipeline {
+        print("[PipelineLoader] loadAppPipeline.start")
         if runSmokeTest {
+            print("[PipelineLoader] loadAppPipeline.beforeSmokeTest")
             _ = try self.runSmokeTest(stepCount: smokeSteps, seed: smokeSeed)
+            print("[PipelineLoader] loadAppPipeline.afterSmokeTest")
         }
+        print("[PipelineLoader] loadAppPipeline.beforeLoad")
         let pipeline = try load()
-        return ZImageAppPipeline(
+        print("[PipelineLoader] loadAppPipeline.afterLoad")
+        let appPipeline = ZImageAppPipeline(
             pipeline: pipeline,
             transformerURL: config.transformerURL,
             vaeDecoderURL: config.vaeDecoderURL,
             embeddingsURL: config.embeddingsURL
         )
+        print("[PipelineLoader] loadAppPipeline.complete")
+        return appPipeline
     }
 
     @discardableResult
     func runSmokeTest(stepCount: Int = 4, seed: UInt32 = 42) throws -> CGImage? {
-        try withResourceAccess {
+        print("[SmokeTest] start")
+        return try withResourceAccess {
             try validateResources()
             try logModelContract()
             print("[ZImageSmoke] embeddings_path=\(config.embeddingsURL.path)")
             print("[ZImageSmoke] expected_latents_shape=[1,16,64,64] expected_cap_feats_shape=[1,77,2560]")
 
+            print("[SmokeTest] beforePipelineCreate")
             var pipeline = try loadUnchecked()
+            print("[SmokeTest] afterPipelineCreate")
+            
+            print("[SmokeTest] beforeLoadResources")
             try pipeline.loadResources()
-            defer { pipeline.unloadResources() }
+            print("[SmokeTest] afterLoadResources")
+            defer {
+                print("[SmokeTest] beforeUnloadResources")
+                pipeline.unloadResources()
+                print("[SmokeTest] afterUnloadResources")
+            }
 
             var finalLatentStats: (min: Float32, max: Float32)?
             let generationConfig = ZImageConfiguration(
@@ -127,6 +151,8 @@ final class ZImagePipelineLoader {
                 stepCount: stepCount,
                 seed: seed
             )
+            
+            print("[SmokeTest] beforeGenerate")
             let images = try pipeline.generateImages(configuration: generationConfig) { progress in
                 let shape = progress.currentLatentSample.shape
                 let scalars = progress.currentLatentSample.scalars
@@ -138,11 +164,13 @@ final class ZImagePipelineLoader {
                 }
                 return true
             }
+            print("[SmokeTest] afterGenerate")
 
             if let stats = finalLatentStats {
                 print("[ZImageSmoke] final_latent_min=\(stats.min) final_latent_max=\(stats.max)")
             }
             print("[ZImageSmoke] output_images=\(images.count)")
+            print("[SmokeTest] complete")
             return images.first ?? nil
         }
     }

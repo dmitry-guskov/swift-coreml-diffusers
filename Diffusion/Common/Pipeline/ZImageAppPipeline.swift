@@ -2,6 +2,9 @@ import Combine
 import CoreGraphics
 import Foundation
 import StableDiffusion
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @available(iOS 17.0, macOS 14.0, *)
 final class ZImageAppPipeline: AppPipeline {
@@ -11,6 +14,7 @@ final class ZImageAppPipeline: AppPipeline {
     private let embeddingsURL: URL
     private var canceled = false
     private let fileManager = FileManager.default
+    private var memoryWarningObserver: NSObjectProtocol?
 
     var progressPublisher: CurrentValueSubject<StableDiffusionProgress?, Never> = .init(nil)
 
@@ -24,6 +28,32 @@ final class ZImageAppPipeline: AppPipeline {
         self.transformerURL = transformerURL
         self.vaeDecoderURL = vaeDecoderURL
         self.embeddingsURL = embeddingsURL
+        
+        setupMemoryWarningObserver()
+    }
+    
+    deinit {
+        if let observer = memoryWarningObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    private func setupMemoryWarningObserver() {
+        #if canImport(UIKit) && !os(watchOS)
+        memoryWarningObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleMemoryWarning()
+        }
+        #endif
+    }
+    
+    private func handleMemoryWarning() {
+        print("[ZImageAppPipeline] Received memory warning - unloading resources")
+        pipeline.unloadResources()
+        print("[ZImageAppPipeline] Memory warning handled - resources unloaded")
     }
 
     func generate(

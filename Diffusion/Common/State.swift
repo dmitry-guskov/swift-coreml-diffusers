@@ -111,7 +111,7 @@ class GenerationContext: ObservableObject {
     @Published var variationBaseNoiseData: Data? = nil
     @Published var variationBaseNoiseShape: [Int]? = nil
 
-    @Published var computeUnits: ComputeUnits = Settings.shared.userSelectedComputeUnits ?? .all
+    @Published var computeUnits: ComputeUnits = Settings.shared.userSelectedComputeUnits ?? .cpuOnly
     @Published var transformerModelPath: String? = Settings.shared.transformerModelPath
     @Published var vaeDecoderPath: String? = Settings.shared.vaeDecoderPath
     @Published var externalEmbeddingsPath: String? = Settings.shared.externalEmbeddingsPath

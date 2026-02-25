@@ -88,8 +88,10 @@ public struct Dit: ResourceManaging {
     
     public func prewarmResources() throws {
         for model in models {
-            try model.loadResources()
-            model.unloadResources()
+            try autoreleasepool {
+                try model.loadResources()
+                model.unloadResources()
+            }
         }
     }
     
@@ -139,29 +141,36 @@ public struct Dit: ResourceManaging {
         // timestep = (1000 - t) / 1000
         // The CoreML model internally multiplies by t_scale if that was
         // preserved during export. Adjust if your export differs.
-        let tNormalized = Float(1000 - timeStep) / 1000.0
-        let t = MLShapedArray<Float32>(
+        let tNormalized = Float16(Float(1000 - timeStep) / 1000.0)
+        let t = MLShapedArray<Float16>(
             scalars: [tNormalized],
             shape: [1]
         )
-        // Build per-sample feature dictionaries
+        
+        // Convert hiddenStates (cap_feats) to Float16 for the FP16 CoreML model
+        let hiddenStatesF16 = MLShapedArray<Float16>(converting: hiddenStates)
+        
+        // Build per-sample feature dictionaries with Float16 inputs
         let inputs: [MLDictionaryFeatureProvider] = try latents.map { latent in
+            // Convert latent to Float16 at the model boundary
+            let latentF16 = MLShapedArray<Float16>(converting: latent)
             let dict: [String: Any] = [
-                "latents": MLMultiArray(latent),
+                "latents": MLMultiArray(latentF16),
                 "timestep": MLMultiArray(t),
-                "cap_feats": MLMultiArray(hiddenStates)
+                "cap_feats": MLMultiArray(hiddenStatesF16)
             ]
             return try MLDictionaryFeatureProvider(dictionary: dict)
         }
         let batch = MLArrayBatchProvider(array: inputs)
-        // Run through model (possibly multi-stage / chunked)
+        print("[Dit] predictNoise: timeStep=\(timeStep) latent_shape=\(latents.first?.shape ?? []) cap_feats_shape=\(hiddenStates.shape) batch_count=\(batch.count)")
         let results = try predictions(from: batch)
-        // Extract results as Float32 and match Python sign convention:
-        // noise_pred = -model_out.squeeze(2)
+        // Extract results and convert FP16 output back to Float32
+        // Match Python sign convention: noise_pred = -model_out.squeeze(2)
         let noise: [MLShapedArray<Float32>] = (0..<results.count).map { i in
             let result = results.features(at: i)
             let outputName = result.featureNames.first!
             let outputNoise = result.featureValue(for: outputName)!.multiArrayValue!
+            // Model outputs Float16; convert to Float32 for scheduler math
             let fp32Noise = MLMultiArray(
                 concatenating: [outputNoise],
                 axis: 0,
@@ -179,23 +188,43 @@ public struct Dit: ResourceManaging {
     /// Runs predictions through all model stages, piping outputs forward.
     /// Identical in structure to Unet.predictions(from:).
     func predictions(from batch: MLBatchProvider) throws -> MLBatchProvider {
-        var results = try models.first!.perform { model in
-            try model.predictions(fromBatch: batch)
+        var results: MLBatchProvider
+        do {
+            results = try models.first!.perform { model in
+                print("[Dit] Starting predictions(fromBatch:) on model...")
+                let r = try model.predictions(fromBatch: batch)
+                print("[Dit] predictions(fromBatch:) succeeded")
+                return r
+            }
+        } catch {
+            print("[Dit] PREDICTION FAILED: \(error)")
+            print("[Dit] Error domain: \(String(describing: (error as NSError).domain))")
+            print("[Dit] Error code: \((error as NSError).code)")
+            print("[Dit] Error userInfo: \((error as NSError).userInfo)")
+            throw error
         }
         if models.count == 1 {
             return results
         }
-        // Manual pipeline: feed previous outputs + original inputs to next stage
         let inputs = batch.arrayOfFeatureValueDictionaries
-        for stage in models.dropFirst() {
+        for (i, stage) in models.dropFirst().enumerated() {
             let next = try results.arrayOfFeatureValueDictionaries
                 .enumerated().map { (index, dict) in
                     let merged = dict.merging(inputs[index]) { output, _ in output }
                     return try MLDictionaryFeatureProvider(dictionary: merged)
                 }
             let nextBatch = MLArrayBatchProvider(array: next)
-            results = try stage.perform { model in
-                try model.predictions(fromBatch: nextBatch)
+            do {
+                results = try stage.perform { model in
+                    print("[Dit] Starting predictions for chunk \(i + 1)...")
+                    let r = try model.predictions(fromBatch: nextBatch)
+                    print("[Dit] Chunk \(i + 1) predictions succeeded")
+                    return r
+                }
+            } catch {
+                print("[Dit] CHUNK \(i + 1) PREDICTION FAILED: \(error)")
+                print("[Dit] Error: \((error as NSError).domain) code=\((error as NSError).code)")
+                throw error
             }
         }
         return results

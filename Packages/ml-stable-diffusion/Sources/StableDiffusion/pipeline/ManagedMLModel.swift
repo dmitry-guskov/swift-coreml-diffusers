@@ -2,6 +2,7 @@
 // Copyright (C) 2022 Apple Inc. All Rights Reserved.
 
 import CoreML
+import Foundation
 
 /// A class to manage and gate access to a Core ML model
 ///
@@ -21,6 +22,11 @@ public final class ManagedMLModel: ResourceManaging {
 
     /// Queue to protect access to loaded model
     var queue: DispatchQueue
+    
+    /// Model name for logging
+    private var modelName: String {
+        modelURL.lastPathComponent
+    }
 
     /// Create a managed model given its location and desired loaded configuration
     ///
@@ -45,7 +51,11 @@ public final class ManagedMLModel: ResourceManaging {
     /// Unload the model if it was loaded
     public func unloadResources() {
         queue.sync {
-            loadedModel = nil
+            if loadedModel != nil {
+                logMemory("ManagedMLModel[\(modelName)].unload.before")
+                loadedModel = nil
+                logMemory("ManagedMLModel[\(modelName)].unload.after")
+            }
         }
     }
 
@@ -68,10 +78,29 @@ public final class ManagedMLModel: ResourceManaging {
 
     private func loadModel() throws {
         if loadedModel == nil {
+            logMemory("ManagedMLModel[\(modelName)].load.before")
+            print("[ManagedMLModel] Loading model: \(modelName)")
+            let startTime = CFAbsoluteTimeGetCurrent()
             loadedModel = try MLModel(contentsOf: modelURL,
                                       configuration: configuration)
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            print("[ManagedMLModel] Loaded \(modelName) in \(String(format: "%.2f", elapsed))s")
+            logMemory("ManagedMLModel[\(modelName)].load.after")
         }
     }
-
-
+    
+    private func logMemory(_ checkpoint: String) {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        
+        if result == KERN_SUCCESS {
+            let usedMB = Double(info.resident_size) / 1_048_576
+            print("[Memory] \(checkpoint): \(String(format: "%.1f", usedMB)) MB")
+        }
+    }
 }
