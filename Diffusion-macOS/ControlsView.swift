@@ -103,7 +103,7 @@ struct ControlsView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Text("Transformer: \(generation.transformerModelPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Bundled ZImageTurbo_TransformerBackbone.mlmodelc")")
+                Text("Transformer: \(generation.transformerModelPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Bundled") (\(generation.transformerStageURLs.count) stages)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("VAE: \(generation.vaeDecoderPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Bundled VAEDecoder.mlmodelc")")
@@ -117,7 +117,7 @@ struct ControlsView: View {
                 //     .font(.caption2)
                 //     .foregroundColor(.secondary)
                 //     .textSelection(.enabled)
-                Text("Resolved Transformer Path: \(generation.transformerModelURL.path)")
+                Text("Resolved Transformer Dir: \(generation.transformerModelURL.deletingLastPathComponent().path)")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .textSelection(.enabled)
@@ -287,11 +287,11 @@ struct ControlsView: View {
     private func bootstrapPipeline() async {
         pipelineState = .loading
         do {
-            let transformerURL = generation.transformerModelURL
+            let stageURLs = generation.transformerStageURLs
             let vaeURL = generation.vaeDecoderModelURL
             let embeddingsURL = generation.effectiveEmbeddingsURL
             let bootstrap = ZImageBootstrapConfig(
-                transformerURL: transformerURL,
+                transformerStageURLs: stageURLs,
                 vaeDecoderURL: vaeURL,
                 embeddingsURL: embeddingsURL
             )

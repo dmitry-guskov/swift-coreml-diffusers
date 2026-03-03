@@ -285,18 +285,17 @@ public struct AutoencoderKLZImage: ResourceManaging {
         }
 
         // Convert each result to CGImage
+        // VAE decoder outputs in [-1, 1]; normalize to [0, 1] via (x / 2 + 0.5).clamp(0, 1)
         let images: [CGImage?] = (0..<results.count).map { i in
             let result = results.features(at: i)
             let outputName = result.featureNames.first!
             let output = result.featureValue(for: outputName)!.multiArrayValue!
-
-            // Try the existing SD helper (expects specific shaped-array layout)
-            if let image = try? CGImage.fromShapedArray(MLShapedArray<Float32>(converting: output)) {
-                return image
-            }
-
-            // Fallback: manual [-1, 1] → [0, 255] → CGImage
-            return cgImageFromModelOutput(output)
+            let rawArray = MLShapedArray<Float32>(converting: output)
+            let normalized = MLShapedArray<Float32>(
+                scalars: rawArray.scalars.map { min(max($0 / 2.0 + 0.5, 0.0), 1.0) },
+                shape: rawArray.shape
+            )
+            return CGImage.fromShapedArray(normalized)
         }
 
         return images
@@ -391,3 +390,78 @@ public struct AutoencoderKLZImage: ResourceManaging {
 /// while we migrate from the old name.
 @available(iOS 17.0, macOS 14.0, *)
 public typealias DecoderZImage = AutoencoderKLZImage
+
+// MARK: - CGImage extensions
+
+@available(iOS 16.0, macOS 13.0, *)
+extension CGImage {
+    /// Convert a CGImage to a planar RGB `MLShapedArray` scaled to [minValue, maxValue].
+    @available(macOS 14.0, *)
+    func planarRGBShapedArray(
+        minValue: Float32 = 0.0,
+        maxValue: Float32 = 1.0
+    ) throws -> MLShapedArray<Float32> {
+        let w = self.width
+        let h = self.height
+        guard let cfData = self.dataProvider?.data,
+              let pointer = CFDataGetBytePtr(cfData) else {
+            throw AutoencoderKLZImage.Error.decoderNotLoaded
+        }
+
+        let bytesPerPixel = self.bitsPerPixel / 8
+        let bytesPerRow = self.bytesPerRow
+        let scale = (maxValue - minValue) / 255.0
+
+        var red   = [Float32](repeating: 0, count: h * w)
+        var green = [Float32](repeating: 0, count: h * w)
+        var blue  = [Float32](repeating: 0, count: h * w)
+
+        for y in 0..<h {
+            for x in 0..<w {
+                let offset = y * bytesPerRow + x * bytesPerPixel
+                let idx = y * w + x
+                red[idx]   = Float32(pointer[offset])     * scale + minValue
+                green[idx] = Float32(pointer[offset + 1]) * scale + minValue
+                blue[idx]  = Float32(pointer[offset + 2]) * scale + minValue
+            }
+        }
+
+        let scalars = red + green + blue
+        return MLShapedArray<Float32>(scalars: scalars, shape: [1, 3, h, w])
+    }
+
+    /// Create a CGImage from a shaped array with layout [1, C, H, W] in [0, 1] range.
+    static func fromShapedArray(_ array: MLShapedArray<Float32>) -> CGImage? {
+        let shape = array.shape
+        guard shape.count == 4, shape[1] == 3 else { return nil }
+        let h = shape[2]
+        let w = shape[3]
+        let scalars = array.scalars
+        let channelSize = h * w
+
+        var pixels = [UInt8](repeating: 255, count: h * w * 4)
+        for y in 0..<h {
+            for x in 0..<w {
+                let srcIdx = y * w + x
+                let dstIdx = (y * w + x) * 4
+                pixels[dstIdx]     = UInt8(min(max(scalars[srcIdx] * 255.0, 0), 255))
+                pixels[dstIdx + 1] = UInt8(min(max(scalars[channelSize + srcIdx] * 255.0, 0), 255))
+                pixels[dstIdx + 2] = UInt8(min(max(scalars[2 * channelSize + srcIdx] * 255.0, 0), 255))
+                pixels[dstIdx + 3] = 255
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: &pixels,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: w * 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+
+        return context.makeImage()
+    }
+}

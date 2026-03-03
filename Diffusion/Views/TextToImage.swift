@@ -981,11 +981,11 @@ struct GenerationView: View {
                 guard #available(iOS 17.0, macOS 14.0, *) else {
                     throw "ZImage checkpoint switching requires iOS 17 / macOS 14."
                 }
-                let transformerURL = generation.transformerModelURL
+                let stageURLs = generation.transformerStageURLs
                 let vaeURL = generation.vaeDecoderModelURL
                 let embeddingsURL = generation.effectiveEmbeddingsURL
                 let bootstrap = ZImageBootstrapConfig(
-                    transformerURL: transformerURL,
+                    transformerStageURLs: stageURLs,
                     vaeDecoderURL: vaeURL,
                     embeddingsURL: embeddingsURL
                 )

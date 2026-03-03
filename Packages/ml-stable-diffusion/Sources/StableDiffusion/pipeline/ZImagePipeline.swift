@@ -10,6 +10,14 @@ import CoreGraphics
 import CoreML
 import Foundation
 
+// MARK: - RNG enum
+
+public enum StableDiffusionRNG {
+    case numpyRNG
+    case torchRNG
+    case nvidiaRNG
+}
+
 // MARK: - Scheduler enum
 
 /// Schedulers compatible with ZImagePipeline

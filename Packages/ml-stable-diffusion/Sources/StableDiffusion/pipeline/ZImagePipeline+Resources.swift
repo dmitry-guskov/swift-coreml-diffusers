@@ -14,33 +14,46 @@ public extension ZImagePipeline {
         }
     }
 
+    static let transformerStageCount = 6
+
+    static let transformerStageFileNames: [String] = (0..<transformerStageCount).map {
+        "ZImageTurbo_TransformerBackbone_stage\($0).mlmodelc"
+    }
+
     struct ResourceURLs {
-        public let transformerURL: URL
+        public let transformerStageURLs: [URL]
         public let vaeDecoderURL: URL
 
         public init(resourcesAt baseURL: URL) {
-            transformerURL = baseURL.appending(path: "ZImageTurbo_TransformerBackbone.mlmodelc")
+            transformerStageURLs = ZImagePipeline.transformerStageFileNames.map {
+                baseURL.appending(path: $0)
+            }
             vaeDecoderURL = baseURL.appending(path: "VAEDecoder.mlmodelc")
         }
     }
 
     init(
-        transformerAt transformerURL: URL,
+        transformerStagesAt stageURLs: [URL],
         vaeDecoderAt vaeDecoderURL: URL,
         configuration: MLModelConfiguration = .init(),
         reduceMemory: Bool = false
     ) throws {
-        guard FileManager.default.fileExists(atPath: transformerURL.path) else {
-            throw ResourceError.missingResource(path: transformerURL.path)
+        for url in stageURLs {
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw ResourceError.missingResource(path: url.path)
+            }
         }
         guard FileManager.default.fileExists(atPath: vaeDecoderURL.path) else {
             throw ResourceError.missingResource(path: vaeDecoderURL.path)
         }
 
-        let dit = Dit(modelAt: transformerURL, configuration: configuration)
+        let dit = Dit(stagesAt: stageURLs, configuration: configuration)
+
+        let vaeConfig = MLModelConfiguration()
+        vaeConfig.computeUnits = .all
         let vae = AutoencoderKLZImage(
             decoderAt: vaeDecoderURL,
-            configuration: configuration,
+            configuration: vaeConfig,
             scalingFactor: 0.3611,
             shiftFactor: 0.1159,
             latentChannels: 16
@@ -55,7 +68,7 @@ public extension ZImagePipeline {
     ) throws {
         let urls = ResourceURLs(resourcesAt: baseURL)
         try self.init(
-            transformerAt: urls.transformerURL,
+            transformerStagesAt: urls.transformerStageURLs,
             vaeDecoderAt: urls.vaeDecoderURL,
             configuration: configuration,
             reduceMemory: reduceMemory

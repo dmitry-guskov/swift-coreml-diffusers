@@ -11,6 +11,49 @@ import SwiftUI
 import StableDiffusion
 import CoreML
 
+// MARK: - Types formerly in Pipeline.swift (deleted with old SD code)
+
+struct StableDiffusionProgress {
+    var step: Int
+    var stepCount: Int
+    var currentImages: [CGImage?] = []
+}
+
+struct GenerationResult {
+    var image: CGImage?
+    var lastSeed: UInt32
+    var interval: TimeInterval?
+    var userCanceled: Bool
+    var itsPerSecond: Double?
+    var initialNoiseData: Data?
+    var initialNoiseShape: [Int]?
+}
+
+protocol AppPipeline: AnyObject {
+    var progressPublisher: CurrentValueSubject<StableDiffusionProgress?, Never> { get }
+
+    func generate(
+        prompt: String,
+        negativePrompt: String,
+        scheduler: StableDiffusionScheduler,
+        numInferenceSteps: Int,
+        seed: UInt32,
+        numPreviews: Int,
+        guidanceScale: Float,
+        disableSafety: Bool,
+        startingImage: CGImage?,
+        strength: Float?,
+        initialNoiseData: Data?,
+        initialNoiseShape: [Int]?,
+        interpolationBaseNoiseData: Data?,
+        interpolationBaseNoiseShape: [Int]?,
+        interpolationSeed: UInt32?,
+        interpolationAmount: Float?
+    ) throws -> GenerationResult
+
+    func setCancelled()
+}
+
 let DEFAULT_MODEL = ModelInfo.sd3
 let DEFAULT_PROMPT = "Labrador in the style of Vermeer"
 
@@ -49,22 +92,11 @@ struct GenerationProgressSnapshot {
     )
 }
 
-/// Schedulers compatible with StableDiffusionPipeline. This is a local implementation of the StableDiffusionScheduler enum as a String represetation to allow for compliance with NSSecureCoding.
+/// Scheduler selector for the app UI. Only discreteFlowScheduler is used by Z-Image.
 public enum StableDiffusionScheduler: String {
-    /// Scheduler that uses a pseudo-linear multi-step (PLMS) method
     case pndmScheduler
-    /// Scheduler that uses a second order DPM-Solver++ algorithm
     case dpmSolverMultistepScheduler
-    /// Scheduler for rectified flow based multimodal diffusion transformer models
     case discreteFlowScheduler
-
-    func asStableDiffusionScheduler() -> StableDiffusion.StableDiffusionScheduler {
-        switch self {
-        case .pndmScheduler: return StableDiffusion.StableDiffusionScheduler.pndmScheduler
-        case .dpmSolverMultistepScheduler: return StableDiffusion.StableDiffusionScheduler.dpmSolverMultistepScheduler
-        case .discreteFlowScheduler: return StableDiffusion.StableDiffusionScheduler.discreteFlowScheduler
-        }
-    }
 }
 
 class GenerationContext: ObservableObject {
@@ -211,6 +243,7 @@ class GenerationContext: ObservableObject {
         state = .complete(prompt, image, seed, nil)
     }
 
+    @MainActor
     func generate(
         prompt overridePrompt: String? = nil,
         baseSeed: UInt32? = nil,
@@ -218,6 +251,7 @@ class GenerationContext: ObservableObject {
         forceSeed: UInt32? = nil
     ) async throws -> GenerationResult {
         guard let pipeline = pipeline else { throw "No pipeline" }
+        // All setup runs on the main actor — safe to read/write @Published properties.
         beginGenerationProgressTracking(estimatedStepCount: Int(steps))
         let variation = max(0, min(1, variationAmount))
         let sourceSeed = baseSeed ?? variationBaseSeed
@@ -261,24 +295,45 @@ class GenerationContext: ObservableObject {
             }
         }
 
-        return try pipeline.generate(
-            prompt: overridePrompt ?? positivePrompt,
-            negativePrompt: negativePrompt,
-            scheduler: scheduler,
-            numInferenceSteps: Int(steps),
-            seed: generationSeed,
-            numPreviews: Int(previews),
-            guidanceScale: Float(guidanceScale),
-            disableSafety: disableSafety,
-            startingImage: nil,
-            strength: nil,
-            initialNoiseData: initialNoiseData,
-            initialNoiseShape: initialNoiseShape,
-            interpolationBaseNoiseData: interpolationBaseNoiseData,
-            interpolationBaseNoiseShape: interpolationBaseNoiseShape,
-            interpolationSeed: interpolationSeed,
-            interpolationAmount: interpolationAmount
-        )
+        // Capture all @Published values now (on main actor) so the background
+        // thread never touches self's properties.
+        let capturedPrompt = overridePrompt ?? positivePrompt
+        let capturedNegativePrompt = negativePrompt
+        let capturedScheduler = scheduler
+        let capturedSteps = Int(steps)
+        let capturedPreviews = Int(previews)
+        let capturedGuidanceScale = Float(guidanceScale)
+        let capturedDisableSafety = disableSafety
+
+        // Run the blocking CoreML inference on a background thread so the main
+        // thread (and layout engine) are never blocked.
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let result = try pipeline.generate(
+                        prompt: capturedPrompt,
+                        negativePrompt: capturedNegativePrompt,
+                        scheduler: capturedScheduler,
+                        numInferenceSteps: capturedSteps,
+                        seed: generationSeed,
+                        numPreviews: capturedPreviews,
+                        guidanceScale: capturedGuidanceScale,
+                        disableSafety: capturedDisableSafety,
+                        startingImage: nil,
+                        strength: nil,
+                        initialNoiseData: initialNoiseData,
+                        initialNoiseShape: initialNoiseShape,
+                        interpolationBaseNoiseData: interpolationBaseNoiseData,
+                        interpolationBaseNoiseShape: interpolationBaseNoiseShape,
+                        interpolationSeed: interpolationSeed,
+                        interpolationAmount: interpolationAmount
+                    )
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
     
     func cancelGeneration() {
@@ -379,9 +434,34 @@ class GenerationContext: ObservableObject {
             path: transformerModelPath,
             bookmarkData: Settings.shared.transformerModelBookmark,
             refreshBookmark: { Settings.shared.transformerModelBookmark = $0 },
-            bundledFallbackName: "ZImageTurbo_TransformerBackbone.mlmodelc",
+            bundledFallbackName: "ZImageTurbo_TransformerBackbone_stage0.mlmodelc",
             resourceLabel: "Transformer"
         ).url
+    }
+
+    var transformerStageURLs: [URL] {
+        let resolved = transformerModelURL
+        let baseDir = resolved.deletingLastPathComponent()
+        let fileName = resolved.deletingPathExtension().lastPathComponent
+        let ext = resolved.pathExtension.isEmpty ? "mlmodelc" : resolved.pathExtension
+
+        if let range = fileName.range(of: "_stage\\d+$", options: .regularExpression) {
+            let prefix = String(fileName[..<range.lowerBound]) + "_stage"
+            let fm = FileManager.default
+            var stages: [(index: Int, url: URL)] = []
+            for i in 0..<100 {
+                let candidate = baseDir.appending(path: "\(prefix)\(i).\(ext)")
+                guard fm.fileExists(atPath: candidate.path) else { break }
+                stages.append((i, candidate))
+            }
+            if !stages.isEmpty {
+                return stages.sorted(by: { $0.index < $1.index }).map(\.url)
+            }
+        }
+
+        return ZImageCheckpointSet.defaultTransformerStageNames.map {
+            baseDir.appending(path: $0)
+        }
     }
 
     var vaeDecoderModelURL: URL {
@@ -413,7 +493,7 @@ class GenerationContext: ObservableObject {
             path: transformerModelPath,
             bookmarkData: Settings.shared.transformerModelBookmark,
             refreshBookmark: { Settings.shared.transformerModelBookmark = $0 },
-            bundledFallbackName: "ZImageTurbo_TransformerBackbone.mlmodelc",
+            bundledFallbackName: "ZImageTurbo_TransformerBackbone_stage0.mlmodelc",
             resourceLabel: "Transformer"
         ).detail
     }

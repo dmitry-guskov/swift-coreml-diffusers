@@ -11,16 +11,20 @@ struct ZImageCheckpointSet: Identifiable, Codable, Hashable {
     var displayName: String
     var sourceType: ZImageCheckpointSourceType
     var basePath: String?
-    var transformerModelName: String
+    var transformerStageNames: [String]
     var vaeDecoderModelName: String
     var embeddingsFileName: String
+
+    static let defaultTransformerStageNames: [String] = (0..<6).map {
+        "ZImageTurbo_TransformerBackbone_stage\($0).mlmodelc"
+    }
 
     static let bundledDefault = ZImageCheckpointSet(
         id: "bundle.default",
         displayName: "Bundled ZImage",
         sourceType: .bundle,
         basePath: nil,
-        transformerModelName: "ZImageTurbo_TransformerBackbone.mlmodelc",
+        transformerStageNames: defaultTransformerStageNames,
         vaeDecoderModelName: "VAEDecoder.mlmodelc",
         embeddingsFileName: "zimage_embeddings.bin"
     )
@@ -80,8 +84,9 @@ final class ZImageCheckpointStore: ObservableObject {
         }
 
         let effectiveEmbeddingsURL = embeddingsOverrideURL ?? baseURL.appending(path: selected.embeddingsFileName)
+        let stageURLs = selected.transformerStageNames.map { baseURL.appending(path: $0) }
         let bootstrap = ZImageBootstrapConfig(
-            transformerURL: baseURL.appending(path: selected.transformerModelName),
+            transformerStageURLs: stageURLs,
             vaeDecoderURL: baseURL.appending(path: selected.vaeDecoderModelName),
             embeddingsURL: effectiveEmbeddingsURL
         )
@@ -95,7 +100,7 @@ final class ZImageCheckpointStore: ObservableObject {
         let pipeline = try loader.load()
         return ZImageAppPipeline(
             pipeline: pipeline,
-            transformerURL: bootstrap.transformerURL,
+            transformerStageURLs: bootstrap.transformerStageURLs,
             vaeDecoderURL: bootstrap.vaeDecoderURL,
             embeddingsURL: bootstrap.embeddingsURL
         )
@@ -112,14 +117,19 @@ final class ZImageCheckpointStore: ObservableObject {
         let sanitized = sanitizeFolderName(baseName)
         let destinationURL = uniqueDestination(root: targetRoot, preferredName: sanitized)
         try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+        let discoveredStageNames = discoverTransformerStageNames(in: destinationURL)
+        let discoveredVaeName = discoverFirstExisting(
+            in: destinationURL,
+            candidates: ["VAEDecoder.mlmodelc", "VAEDecoder.mlpackage"]
+        )
 
         let newSet = ZImageCheckpointSet(
             id: UUID().uuidString,
             displayName: baseName.isEmpty ? "Imported \(checkpointSets.count + 1)" : baseName,
             sourceType: .imported,
             basePath: destinationURL.path,
-            transformerModelName: ZImageCheckpointSet.bundledDefault.transformerModelName,
-            vaeDecoderModelName: ZImageCheckpointSet.bundledDefault.vaeDecoderModelName,
+            transformerStageNames: discoveredStageNames.isEmpty ? ZImageCheckpointSet.bundledDefault.transformerStageNames : discoveredStageNames,
+            vaeDecoderModelName: discoveredVaeName ?? ZImageCheckpointSet.bundledDefault.vaeDecoderModelName,
             embeddingsFileName: ZImageCheckpointSet.bundledDefault.embeddingsFileName
         )
         checkpointSets.append(newSet)
@@ -201,5 +211,48 @@ final class ZImageCheckpointStore: ObservableObject {
             counter += 1
         }
         return candidate
+    }
+
+    private func discoverFirstExisting(in baseURL: URL, candidates: [String]) -> String? {
+        let fm = FileManager.default
+        for name in candidates {
+            if fm.fileExists(atPath: baseURL.appending(path: name).path) {
+                return name
+            }
+        }
+        return nil
+    }
+
+    private func discoverTransformerStageNames(in baseURL: URL) -> [String] {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: baseURL.path) else {
+            return []
+        }
+
+        let regexPattern = #"^ZImageTurbo_TransformerBackbone_stage(\d+)\.(mlmodelc|mlpackage)$"#
+        guard let regex = try? NSRegularExpression(pattern: regexPattern) else {
+            return []
+        }
+
+        var indexed: [(index: Int, name: String)] = []
+        for name in names {
+            let range = NSRange(location: 0, length: name.utf16.count)
+            guard let match = regex.firstMatch(in: name, options: [], range: range),
+                  match.numberOfRanges >= 2,
+                  let idxRange = Range(match.range(at: 1), in: name),
+                  let idx = Int(name[idxRange]) else {
+                continue
+            }
+            indexed.append((index: idx, name: name))
+        }
+        if indexed.isEmpty {
+            return []
+        }
+
+        indexed.sort { $0.index < $1.index }
+        for (expected, found) in indexed.enumerated() where expected != found.index {
+            return []
+        }
+        return indexed.map(\.name)
     }
 }

@@ -10,149 +10,168 @@ import CoreML
 
 /// DiT (Diffusion Transformer) noise prediction model for Z-Image
 ///
-/// Wraps the CoreML-exported ZImageTransformer2DModel. The Python model
-/// performs patchification, RoPE, adaLN modulation, and attention internally;
-/// after CoreML conversion all of that is baked into the compiled model so
-/// the Swift side only needs to supply:
-///   - `latents`                — latent tensor  [1, C, H, W]  (F dim squeezed at export)
-///   - `timestep`               — scalar or [1] float timestep
-///   - `cap_feats`              — caption features [1, seq_len, cap_feat_dim]
+/// Supports stagewise execution where each stage has a different I/O contract:
+///   - stage 0:  inputs `latents`, `timestep`, `cap_feats`  →  output `hidden_tokens`
+///   - stage 1‒4: inputs `hidden_tokens`, `timestep`, `cap_feats`  →  output `hidden_tokens`
+///   - stage 5:  inputs `hidden_tokens`, `timestep`, `cap_feats`  →  output final noise tensor
 @available(iOS 17.0, macOS 14.0, *)
 public struct Dit: ResourceManaging {
+
     public enum Error: Swift.Error, LocalizedError {
-        case inputContractMismatch(expected: [String], actual: [String])
+        case invalidStageInputs(stageIndex: Int, expected: Set<String>, actual: [String])
+        case invalidOutputContract(stageIndex: Int, outputKeys: [String])
+        case missingOutputFeature(stageIndex: Int)
+        case incompatibleHiddenTokens(stageIndex: Int, expected: [Int], actual: [Int])
+        case incompatibleHiddenTokensDtype(stageIndex: Int, expected: MLMultiArrayDataType, actual: MLMultiArrayDataType)
 
         public var errorDescription: String? {
             switch self {
-            case .inputContractMismatch(let expected, let actual):
-                return "DiT CoreML input contract mismatch. Expected \(expected), got \(actual)."
+            case .invalidStageInputs(let idx, let expected, let actual):
+                return "Stage \(idx) input contract mismatch. Expected \(expected.sorted()), got \(actual)."
+            case .invalidOutputContract(let idx, let outputKeys):
+                return "Stage \(idx) must expose exactly one output tensor; got \(outputKeys)."
+            case .missingOutputFeature(let idx):
+                return "Stage \(idx) output feature is missing from prediction result."
+            case .incompatibleHiddenTokens(let idx, let expected, let actual):
+                return "Stage \(idx) hidden_tokens shape mismatch. Expected \(expected), got \(actual)."
+            case .incompatibleHiddenTokensDtype(let idx, let expected, let actual):
+                return "Stage \(idx) hidden_tokens dtype mismatch. Expected \(expected), got \(actual)."
             }
         }
     }
-    
+
+    private static let stage0Inputs: Set<String> = ["latents", "timestep", "cap_feats"]
+    private static let stageNInputs: Set<String> = ["hidden_tokens", "timestep", "cap_feats"]
+
     // MARK: - Properties
-    
-    /// Underlying Core ML model(s). May be chunked for memory efficiency.
+
     var models: [ManagedMLModel]
-    
-    /// Timestep scale matching Python `ZImageTransformer2DModel.t_scale`
-    /// The Python pipeline sends `(1000 - t) / 1000` which the model
-    /// multiplies back by 1000 internally.  If your CoreML export already
-    /// embeds that multiplication set this to 1.0.
     let tScale: Float
-    
+
     // MARK: - Initializers
-    
-    /// Creates a DiT model from a single compiled Core ML model
-    ///
-    /// - Parameters:
-    ///   - url: Location of the compiled `.mlmodelc`
-    ///   - configuration: Core ML configuration (compute units, etc.)
-    ///   - tScale: Timestep scaling factor (default 1000, matching Python)
+
     public init(modelAt url: URL,
                 configuration: MLModelConfiguration,
                 tScale: Float = 1000.0) {
         self.models = [ManagedMLModel(modelAt: url, configuration: configuration)]
         self.tScale = tScale
     }
-    
-    /// Creates a DiT model from multiple compiled chunks
-    ///
-    /// - Parameters:
-    ///   - urls: Ordered URLs to each compiled chunk
-    ///   - configuration: Core ML configuration
-    ///   - tScale: Timestep scaling factor
-    public init(chunksAt urls: [URL],
+
+    public init(stagesAt urls: [URL],
                 configuration: MLModelConfiguration,
                 tScale: Float = 1000.0) {
         self.models = urls.map { ManagedMLModel(modelAt: $0, configuration: configuration) }
         self.tScale = tScale
     }
-    
+
+    var unloadStagesAfterUse: Bool { models.count > 1 }
+
     // MARK: - ResourceManaging
-    
+
     public func loadResources() throws {
-        for model in models {
-            try model.loadResources()
-            try model.perform { loadedModel in
-                try validateInputContract(for: loadedModel)
+        if unloadStagesAfterUse {
+            try prewarmResources()
+        } else {
+            for (i, model) in models.enumerated() {
+                try model.loadResources()
+                try model.perform { loaded in
+                    try validateStageInputContract(for: loaded, stageIndex: i)
+                }
             }
         }
     }
-    
+
     public func unloadResources() {
         for model in models {
             model.unloadResources()
         }
     }
-    
+
     public func prewarmResources() throws {
-        for model in models {
+        for (i, model) in models.enumerated() {
             try autoreleasepool {
                 try model.loadResources()
+                try model.perform { loaded in
+                    try validateStageInputContract(for: loaded, stageIndex: i)
+                    try validateSingleOutput(for: loaded, stageIndex: i)
+                }
                 model.unloadResources()
             }
         }
     }
-    
+
+    // MARK: - Validation
+
+    private func expectedInputKeys(for stageIndex: Int) -> Set<String> {
+        stageIndex == 0 ? Self.stage0Inputs : Self.stageNInputs
+    }
+
+    private func validateStageInputContract(for model: MLModel, stageIndex: Int) throws {
+        let expected = expectedInputKeys(for: stageIndex)
+        let actual = Set(model.modelDescription.inputDescriptionsByName.keys)
+        guard actual == expected else {
+            throw Error.invalidStageInputs(stageIndex: stageIndex, expected: expected, actual: actual.sorted())
+        }
+    }
+
+    private func validateSingleOutput(for model: MLModel, stageIndex: Int) throws {
+        let outputs = model.modelDescription.outputDescriptionsByName.keys.sorted()
+        guard outputs.count == 1 else {
+            throw Error.invalidOutputContract(stageIndex: stageIndex, outputKeys: outputs)
+        }
+    }
+
+    private func singleOutputTensor(from provider: MLFeatureProvider, stageIndex: Int) throws -> MLMultiArray {
+        let names = provider.featureNames.sorted()
+        guard names.count == 1,
+              let name = names.first,
+              let value = provider.featureValue(for: name)?.multiArrayValue else {
+            throw Error.missingOutputFeature(stageIndex: stageIndex)
+        }
+        return value
+    }
+
+    private func validateHiddenTokensContinuity(
+        previousOutput: MLMultiArray,
+        nextModel: MLModel,
+        stageIndex: Int
+    ) throws {
+        guard let desc = nextModel.modelDescription.inputDescriptionsByName["hidden_tokens"],
+              let constraint = desc.multiArrayConstraint else { return }
+        let expectedShape = constraint.shape.map(\.intValue)
+        let actualShape = previousOutput.shape.map(\.intValue)
+        if expectedShape != actualShape {
+            throw Error.incompatibleHiddenTokens(stageIndex: stageIndex, expected: expectedShape, actual: actualShape)
+        }
+        if constraint.dataType != previousOutput.dataType {
+            throw Error.incompatibleHiddenTokensDtype(stageIndex: stageIndex, expected: constraint.dataType, actual: previousOutput.dataType)
+        }
+    }
+
     // MARK: - Model metadata helpers
-    
+
     var latentSampleDescription: MLFeatureDescription {
         try! models.first!.perform { model in
             model.modelDescription.inputDescriptionsByName["latents"]!
         }
     }
 
-    private func validateInputContract(for model: MLModel) throws {
-        let expected = ["cap_feats", "latents", "timestep"]
-        let actual = model.modelDescription.inputDescriptionsByName.keys.sorted()
-        guard expected == actual else {
-            throw Error.inputContractMismatch(expected: expected, actual: actual)
-        }
-    }
-    
-    /// The expected shape of the latent sample input (e.g. [1, 16, H, W])
     public var latentSampleShape: [Int] {
         latentSampleDescription.multiArrayConstraint!.shape.map { $0.intValue }
     }
-    
+
     // MARK: - Noise prediction
-    
-    /// Predict noise residuals from latent samples
-    ///
-    /// Mirrors the Python pipeline's call:
-    ///
-    /// timestep = (1000 - t) / 1000          # normalize
-    /// model_out = transformer(latents, timestep, cap_feats)
-    /// noise_pred = -model_out.squeeze(2)     # remove frame dim
-    ///
-    ///
-    /// - Parameters:
-    /// - latents: Batch of latent samples [1, C, H, W]
-    /// - timeStep: Current diffusion timestep (integer from scheduler, e.g. 0…1000)
-    /// - hiddenStates: Caption / text encoder hidden states [1, seq_len, dim]
-    /// - Returns: Array of predicted noise residuals [1, C, H, W]
+
     func predictNoise(
         latents: [MLShapedArray<Float32>],
         timeStep: Int,
         hiddenStates: MLShapedArray<Float32>
     ) throws -> [MLShapedArray<Float32>] {
-        // Normalize timestep the same way the Python pipeline does:
-        // timestep = (1000 - t) / 1000
-        // The CoreML model internally multiplies by t_scale if that was
-        // preserved during export. Adjust if your export differs.
         let tNormalized = Float16(Float(1000 - timeStep) / 1000.0)
-        let t = MLShapedArray<Float16>(
-            scalars: [tNormalized],
-            shape: [1]
-        )
-        
-        // Convert hiddenStates (cap_feats) to Float16 for the FP16 CoreML model
+        let t = MLShapedArray<Float16>(scalars: [tNormalized], shape: [1])
         let hiddenStatesF16 = MLShapedArray<Float16>(converting: hiddenStates)
-        
-        // Build per-sample feature dictionaries with Float16 inputs
+
         let inputs: [MLDictionaryFeatureProvider] = try latents.map { latent in
-            // Convert latent to Float16 at the model boundary
             let latentF16 = MLShapedArray<Float16>(converting: latent)
             let dict: [String: Any] = [
                 "latents": MLMultiArray(latentF16),
@@ -164,69 +183,116 @@ public struct Dit: ResourceManaging {
         let batch = MLArrayBatchProvider(array: inputs)
         print("[Dit] predictNoise: timeStep=\(timeStep) latent_shape=\(latents.first?.shape ?? []) cap_feats_shape=\(hiddenStates.shape) batch_count=\(batch.count)")
         let results = try predictions(from: batch)
-        // Extract results and convert FP16 output back to Float32
-        // Match Python sign convention: noise_pred = -model_out.squeeze(2)
-        let noise: [MLShapedArray<Float32>] = (0..<results.count).map { i in
+        var noise: [MLShapedArray<Float32>] = []
+        noise.reserveCapacity(results.count)
+        for i in 0..<results.count {
             let result = results.features(at: i)
-            let outputName = result.featureNames.first!
-            let outputNoise = result.featureValue(for: outputName)!.multiArrayValue!
-            // Model outputs Float16; convert to Float32 for scheduler math
-            let fp32Noise = MLMultiArray(
-                concatenating: [outputNoise],
-                axis: 0,
-                dataType: .float32
-            )
-            let modelOut = MLShapedArray<Float32>(fp32Noise)
-            return MLShapedArray<Float32>(
-                scalars: modelOut.scalars.map { -$0 },
-                shape: modelOut.shape
+            let outputArray = try singleOutputTensor(from: result, stageIndex: models.count - 1)
+            let fp32 = MLMultiArray(concatenating: [outputArray], axis: 0, dataType: .float32)
+            let modelOut = MLShapedArray<Float32>(fp32)
+            noise.append(
+                MLShapedArray<Float32>(
+                    scalars: modelOut.scalars.map { -$0 },
+                    shape: modelOut.shape
+                )
             )
         }
         return noise
     }
-    // MARK: - Multi-stage prediction (chunked model support)
-    /// Runs predictions through all model stages, piping outputs forward.
-    /// Identical in structure to Unet.predictions(from:).
+
+    // MARK: - Stagewise prediction
+
+    /// Runs predictions through all stages sequentially, piping outputs forward.
+    ///
+    /// Stage 0 receives the original batch (`latents`, `timestep`, `cap_feats`).
+    /// Its single output tensor is mapped to `hidden_tokens` and merged with
+    /// `timestep` and `cap_feats` from the original batch for stages 1‒5.
+    /// Each stage is unloaded immediately after use when running multi-stage.
     func predictions(from batch: MLBatchProvider) throws -> MLBatchProvider {
-        var results: MLBatchProvider
-        do {
-            results = try models.first!.perform { model in
-                print("[Dit] Starting predictions(fromBatch:) on model...")
-                let r = try model.predictions(fromBatch: batch)
-                print("[Dit] predictions(fromBatch:) succeeded")
-                return r
-            }
-        } catch {
-            print("[Dit] PREDICTION FAILED: \(error)")
-            print("[Dit] Error domain: \(String(describing: (error as NSError).domain))")
-            print("[Dit] Error code: \((error as NSError).code)")
-            print("[Dit] Error userInfo: \((error as NSError).userInfo)")
-            throw error
-        }
-        if models.count == 1 {
-            return results
-        }
-        let inputs = batch.arrayOfFeatureValueDictionaries
-        for (i, stage) in models.dropFirst().enumerated() {
-            let next = try results.arrayOfFeatureValueDictionaries
-                .enumerated().map { (index, dict) in
-                    let merged = dict.merging(inputs[index]) { output, _ in output }
-                    return try MLDictionaryFeatureProvider(dictionary: merged)
-                }
-            let nextBatch = MLArrayBatchProvider(array: next)
+        let shouldUnload = unloadStagesAfterUse
+
+        let originalInputs = batch.arrayOfFeatureValueDictionaries
+        var accumulated: [[String: MLFeatureValue]] = originalInputs
+        var lastResults: MLBatchProvider!
+
+        for (stageIndex, stage) in models.enumerated() {
             do {
-                results = try stage.perform { model in
-                    print("[Dit] Starting predictions for chunk \(i + 1)...")
-                    let r = try model.predictions(fromBatch: nextBatch)
-                    print("[Dit] Chunk \(i + 1) predictions succeeded")
+                lastResults = try autoreleasepool {
+                    let inputBatch = MLArrayBatchProvider(array: try accumulated.map {
+                        try MLDictionaryFeatureProvider(dictionary: $0)
+                    })
+                    let r = try stage.perform { model in
+                        try validateStageInputContract(for: model, stageIndex: stageIndex)
+                        try validateSingleOutput(for: model, stageIndex: stageIndex)
+
+                        if stageIndex > 0, let htDesc = model.modelDescription.inputDescriptionsByName["hidden_tokens"] {
+                            for entry in accumulated {
+                                if let ht = entry["hidden_tokens"]?.multiArrayValue, let constraint = htDesc.multiArrayConstraint {
+                                    let expectedShape = constraint.shape.map(\.intValue)
+                                    let actualShape = ht.shape.map(\.intValue)
+                                    if expectedShape != actualShape {
+                                        throw Error.incompatibleHiddenTokens(stageIndex: stageIndex, expected: expectedShape, actual: actualShape)
+                                    }
+                                    if constraint.dataType != ht.dataType {
+                                        throw Error.incompatibleHiddenTokensDtype(stageIndex: stageIndex, expected: constraint.dataType, actual: ht.dataType)
+                                    }
+                                }
+                            }
+                        }
+
+                        print("[Dit] Running stage \(stageIndex)...")
+                        let r = try model.predictions(fromBatch: inputBatch)
+                        print("[Dit] Stage \(stageIndex) succeeded")
+                        return r
+                    }
+                    if shouldUnload {
+                        print("[Dit] Unloading stage \(stageIndex)")
+                        stage.unloadResources()
+                    }
                     return r
                 }
+
+                let outputs = lastResults.arrayOfFeatureValueDictionaries
+                accumulated = try accumulated.enumerated().map { (batchIdx, prev) in
+                    let outputDict = outputs[batchIdx]
+                    guard let outputKey = outputDict.keys.first,
+                          let outputValue = outputDict[outputKey] else {
+                        throw Error.missingOutputFeature(stageIndex: stageIndex)
+                    }
+
+                    var next = prev
+                    next["hidden_tokens"] = outputValue
+                    next.removeValue(forKey: "latents")
+                    return next
+                }
             } catch {
-                print("[Dit] CHUNK \(i + 1) PREDICTION FAILED: \(error)")
+                print("[Dit] STAGE \(stageIndex) FAILED: \(error)")
                 print("[Dit] Error: \((error as NSError).domain) code=\((error as NSError).code)")
                 throw error
             }
         }
-        return results
+        return lastResults
+    }
+}
+
+// MARK: - MLBatchProvider convenience
+
+extension MLBatchProvider {
+    var arrayOfFeatureValueDictionaries: [[String: MLFeatureValue]] {
+        (0..<self.count).map {
+            self.features(at: $0).featureValueDictionary
+        }
+    }
+}
+
+extension MLFeatureProvider {
+    var featureValueDictionary: [String: MLFeatureValue] {
+        var dict: [String: MLFeatureValue] = [:]
+        for name in self.featureNames {
+            if let value = self.featureValue(for: name) {
+                dict[name] = value
+            }
+        }
+        return dict
     }
 }

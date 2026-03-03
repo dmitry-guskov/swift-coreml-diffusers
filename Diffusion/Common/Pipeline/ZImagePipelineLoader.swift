@@ -3,33 +3,33 @@ import CoreGraphics
 import Foundation
 import StableDiffusion
 
-@available(iOS 17.0, macOS 14.0, *)
+@available(iOS 18.0, macOS 14.0, *)
 struct ZImageBootstrapConfig {
-    let transformerURL: URL
+    let transformerStageURLs: [URL]
     let vaeDecoderURL: URL
     let embeddingsURL: URL
 
     init(
-        transformerURL: URL,
+        transformerStageURLs: [URL],
         vaeDecoderURL: URL,
         embeddingsURL: URL
     ) {
-        self.transformerURL = transformerURL
+        self.transformerStageURLs = transformerStageURLs
         self.vaeDecoderURL = vaeDecoderURL
         self.embeddingsURL = embeddingsURL
     }
 }
 
-@available(iOS 17.0, macOS 14.0, *)
+@available(iOS 18.0, macOS 14.0, *)
 enum ZImagePipelineLoaderError: LocalizedError {
-    case missingTransformer(path: String)
+    case missingTransformerStage(index: Int, path: String)
     case missingVaeDecoder(path: String)
     case missingEmbeddings(path: String)
 
     var errorDescription: String? {
         switch self {
-        case .missingTransformer(let path):
-            return "Missing Transformer model at path: \(path)"
+        case .missingTransformerStage(let index, let path):
+            return "Missing Transformer stage \(index) at path: \(path)"
         case .missingVaeDecoder(let path):
             return "Missing VAE decoder model at path: \(path)"
         case .missingEmbeddings(let path):
@@ -45,15 +45,33 @@ final class ZImagePipelineLoader {
 
     init(
         config: ZImageBootstrapConfig,
-        computeUnits: ComputeUnits = .cpuOnly
+        computeUnits: ComputeUnits = .cpuAndNeuralEngine
     ) {
         self.config = config
         self.computeUnits = computeUnits
     }
 
+    private func logResolvedResources() {
+        let fm = FileManager.default
+        print("[PipelineLoader] ===== Resolved resource manifest =====")
+        print("[PipelineLoader] computeUnits = \(computeUnits)")
+        for (i, url) in config.transformerStageURLs.enumerated() {
+            let exists = fm.fileExists(atPath: url.path)
+            print("[PipelineLoader]   stage[\(i)] = \(url.path)  (exists: \(exists))")
+        }
+        let vaeExists = fm.fileExists(atPath: config.vaeDecoderURL.path)
+        print("[PipelineLoader]   vaeDecoder = \(config.vaeDecoderURL.path)  (exists: \(vaeExists))")
+        let embExists = fm.fileExists(atPath: config.embeddingsURL.path)
+        print("[PipelineLoader]   embeddings = \(config.embeddingsURL.path)  (exists: \(embExists))")
+        print("[PipelineLoader] ===== End resource manifest =====")
+    }
+
     private func validateResources() throws {
-        guard FileManager.default.fileExists(atPath: config.transformerURL.path) else {
-            throw ZImagePipelineLoaderError.missingTransformer(path: config.transformerURL.path)
+        logResolvedResources()
+        for (i, url) in config.transformerStageURLs.enumerated() {
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw ZImagePipelineLoaderError.missingTransformerStage(index: i, path: url.path)
+            }
         }
         guard FileManager.default.fileExists(atPath: config.vaeDecoderURL.path) else {
             throw ZImagePipelineLoaderError.missingVaeDecoder(path: config.vaeDecoderURL.path)
@@ -64,7 +82,7 @@ final class ZImagePipelineLoader {
     }
 
     private func withResourceAccess<T>(_ body: () throws -> T) throws -> T {
-        let urls = [config.transformerURL, config.vaeDecoderURL, config.embeddingsURL]
+        let urls = config.transformerStageURLs + [config.vaeDecoderURL, config.embeddingsURL]
         let accessFlags = urls.map { $0.startAccessingSecurityScopedResource() }
         defer {
             for (index, granted) in accessFlags.enumerated().reversed() where granted {
@@ -77,10 +95,25 @@ final class ZImagePipelineLoader {
     private func loadUnchecked() throws -> ZImagePipeline {
         print("[PipelineLoader] loadUnchecked.start")
         let mlConfig = MLModelConfiguration()
-        mlConfig.computeUnits = computeUnits
-        print("[PipelineLoader] Creating ZImagePipeline with computeUnits=\(computeUnits)")
+        mlConfig.computeUnits = .cpuAndNeuralEngine
+        print("[PipelineLoader] DEBUG: overriding computeUnits to .all (was \(computeUnits))")
+
+        let allStages = config.transformerStageURLs
+        let debugStages: [URL]
+        if allStages.count >= 2 {
+            debugStages = [allStages.first!, allStages.last!]
+            print("[PipelineLoader] DEBUG: using only stage 0 + stage \(allStages.count - 1) out of \(allStages.count)")
+        } else {
+            debugStages = allStages
+        }
+
+        print("[PipelineLoader] Creating ZImagePipeline with \(debugStages.count) stage(s), computeUnits=.all")
+        for (i, url) in debugStages.enumerated() {
+            print("[PipelineLoader]   debug_stage[\(i)] = \(url.lastPathComponent)")
+        }
+
         let pipeline = try ZImagePipeline(
-            transformerAt: config.transformerURL,
+            transformerStagesAt: debugStages,
             vaeDecoderAt: config.vaeDecoderURL,
             configuration: mlConfig,
             reduceMemory: true
@@ -115,7 +148,7 @@ final class ZImagePipelineLoader {
         print("[PipelineLoader] loadAppPipeline.afterLoad")
         let appPipeline = ZImageAppPipeline(
             pipeline: pipeline,
-            transformerURL: config.transformerURL,
+            transformerStageURLs: config.transformerStageURLs,
             vaeDecoderURL: config.vaeDecoderURL,
             embeddingsURL: config.embeddingsURL
         )
@@ -176,10 +209,11 @@ final class ZImagePipelineLoader {
     }
 
     private func logModelContract() throws {
+        guard let firstStageURL = config.transformerStageURLs.first else { return }
         let mlConfig = MLModelConfiguration()
         mlConfig.computeUnits = computeUnits
-        let model = try MLModel(contentsOf: config.transformerURL, configuration: mlConfig)
+        let model = try MLModel(contentsOf: firstStageURL, configuration: mlConfig)
         let inputNames = model.modelDescription.inputDescriptionsByName.keys.sorted()
-        print("[ZImageSmoke] model_input_names=\(inputNames)")
+        print("[ZImageSmoke] stage0_input_names=\(inputNames)")
     }
 }

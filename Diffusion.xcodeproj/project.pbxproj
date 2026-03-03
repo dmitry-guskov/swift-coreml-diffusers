@@ -26,11 +26,8 @@
 		A9F100092E90000100A1B001 /* ZImageCheckpointStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F100082E90000100A1B001 /* ZImageCheckpointStore.swift */; };
 		EB067F872992E561004D1AD9 /* HelpContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB067F862992E561004D1AD9 /* HelpContent.swift */; };
 		EB560F0429A3C20800C0F8B8 /* Capabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB560F0329A3C20800C0F8B8 /* Capabilities.swift */; };
-		EBB5BA5329425BEE003A2A5B /* PipelineLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB5BA5229425BEE003A2A5B /* PipelineLoader.swift */; };
 		EBB5BA5A29426E06003A2A5B /* Downloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB5BA5929426E06003A2A5B /* Downloader.swift */; };
 		EBB5BA5D294504DE003A2A5B /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = EBB5BA5C294504DE003A2A5B /* ZIPFoundation */; };
-		EBDD7DAA29731F6C00C1C4B2 /* Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE75601293E91E200806B32 /* Pipeline.swift */; };
-		EBDD7DAB29731F7500C1C4B2 /* PipelineLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBB5BA5229425BEE003A2A5B /* PipelineLoader.swift */; };
 		EBDD7DAF29731FB300C1C4B2 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = EBDD7DAE29731FB300C1C4B2 /* ZIPFoundation */; };
 		EBDD7DB32973200200C1C4B2 /* Utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBDD7DB22973200200C1C4B2 /* Utils.swift */; };
 		EBDD7DB42973200200C1C4B2 /* Utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBDD7DB22973200200C1C4B2 /* Utils.swift */; };
@@ -48,7 +45,6 @@
 		EBE755DB293E37DE00806B32 /* DiffusionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE755DA293E37DE00806B32 /* DiffusionTests.swift */; };
 		EBE755E5293E37DE00806B32 /* DiffusionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE755E4293E37DE00806B32 /* DiffusionUITests.swift */; };
 		EBE755E7293E37DE00806B32 /* DiffusionUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE755E6293E37DE00806B32 /* DiffusionUITestsLaunchTests.swift */; };
-		EBE75602293E91E200806B32 /* Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE75601293E91E200806B32 /* Pipeline.swift */; };
 		EBE756092941178600806B32 /* Loading.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE756082941178600806B32 /* Loading.swift */; };
 		F15520242971093300DC009B /* Diffusion_macOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15520232971093300DC009B /* Diffusion_macOSApp.swift */; };
 		F15520262971093300DC009B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F15520252971093300DC009B /* ContentView.swift */; };
@@ -90,7 +86,6 @@
 		EB33A51E2954E1BC00B16357 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		EB560F0329A3C20800C0F8B8 /* Capabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Capabilities.swift; sourceTree = "<group>"; };
 		EB560F0529A4090D00C0F8B8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		EBB5BA5229425BEE003A2A5B /* PipelineLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineLoader.swift; sourceTree = "<group>"; };
 		EBB5BA5929426E06003A2A5B /* Downloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloader.swift; sourceTree = "<group>"; };
 		EBDD7DB22973200200C1C4B2 /* Utils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils.swift; sourceTree = "<group>"; };
 		EBDD7DB72976AAFE00C1C4B2 /* State.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = State.swift; sourceTree = "<group>"; };
@@ -111,7 +106,6 @@
 		EBE755E0293E37DE00806B32 /* DiffusionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DiffusionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EBE755E4293E37DE00806B32 /* DiffusionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffusionUITests.swift; sourceTree = "<group>"; };
 		EBE755E6293E37DE00806B32 /* DiffusionUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffusionUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		EBE75601293E91E200806B32 /* Pipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pipeline.swift; sourceTree = "<group>"; };
 		EBE756082941178600806B32 /* Loading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loading.swift; sourceTree = "<group>"; };
 		F15520212971093300DC009B /* Diffusers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Diffusers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F15520232971093300DC009B /* Diffusion_macOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diffusion_macOSApp.swift; sourceTree = "<group>"; };
@@ -185,8 +179,6 @@
 		EBB5BA5129425B07003A2A5B /* Pipeline */ = {
 			isa = PBXGroup;
 			children = (
-				EBE75601293E91E200806B32 /* Pipeline.swift */,
-				EBB5BA5229425BEE003A2A5B /* PipelineLoader.swift */,
 				A9F100012E90000100A1B001 /* ZImagePipelineLoader.swift */,
 				A9F100022E90000100A1B001 /* ZImageAppPipeline.swift */,
 				A9F100082E90000100A1B001 /* ZImageCheckpointStore.swift */,
@@ -513,7 +505,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EBE75602293E91E200806B32 /* Pipeline.swift in Sources */,
 				EBE755CB293E37DD00806B32 /* TextToImage.swift in Sources */,
 				EBB5BA5A29426E06003A2A5B /* Downloader.swift in Sources */,
 				8C4B32062A770C300090EF17 /* DiffusionImage+iOS.swift in Sources */,
@@ -522,7 +513,6 @@
 				EBE756092941178600806B32 /* Loading.swift in Sources */,
 				8C4B32082A77F90C0090EF17 /* Utils_iOS.swift in Sources */,
 				EBDD7DB82976AAFE00C1C4B2 /* State.swift in Sources */,
-				EBB5BA5329425BEE003A2A5B /* PipelineLoader.swift in Sources */,
 				A9F100032E90000100A1B001 /* ZImagePipelineLoader.swift in Sources */,
 				A9F100052E90000100A1B001 /* ZImageAppPipeline.swift in Sources */,
 				A9F100072E90000100A1B001 /* ZImageCheckpointStore.swift in Sources */,
@@ -553,8 +543,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EBDD7DAB29731F7500C1C4B2 /* PipelineLoader.swift in Sources */,
-				EBDD7DAA29731F6C00C1C4B2 /* Pipeline.swift in Sources */,
 				F15520262971093300DC009B /* ContentView.swift in Sources */,
 				EBDD7DB92976AAFE00C1C4B2 /* State.swift in Sources */,
 				EB067F872992E561004D1AD9 /* HelpContent.swift in Sources */,

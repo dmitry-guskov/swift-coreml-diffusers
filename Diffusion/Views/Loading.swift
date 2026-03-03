@@ -50,7 +50,7 @@ struct LoadingView: View {
 
                     if #available(iOS 17.0, macOS 14.0, *) {
                         let bootstrap = ZImageBootstrapConfig(
-                            transformerURL: generation.transformerModelURL,
+                            transformerStageURLs: generation.transformerStageURLs,
                             vaeDecoderURL: generation.vaeDecoderModelURL,
                             embeddingsURL: generation.effectiveEmbeddingsURL
                         )

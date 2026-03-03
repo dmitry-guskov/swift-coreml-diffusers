@@ -9,7 +9,7 @@ import UIKit
 @available(iOS 17.0, macOS 14.0, *)
 final class ZImageAppPipeline: AppPipeline {
     private var pipeline: StableDiffusion.ZImagePipeline
-    private let transformerURL: URL
+    private let transformerStageURLs: [URL]
     private let vaeDecoderURL: URL
     private let embeddingsURL: URL
     private var canceled = false
@@ -20,12 +20,12 @@ final class ZImageAppPipeline: AppPipeline {
 
     init(
         pipeline: StableDiffusion.ZImagePipeline,
-        transformerURL: URL,
+        transformerStageURLs: [URL],
         vaeDecoderURL: URL,
         embeddingsURL: URL
     ) {
         self.pipeline = pipeline
-        self.transformerURL = transformerURL
+        self.transformerStageURLs = transformerStageURLs
         self.vaeDecoderURL = vaeDecoderURL
         self.embeddingsURL = embeddingsURL
         
@@ -85,15 +85,15 @@ final class ZImageAppPipeline: AppPipeline {
         config.initialLatentData = initialNoiseData
         config.initialLatentShape = initialNoiseShape
         let debugRunDirectory = try makeDebugRunDirectory(seed: seed)
-        config.debugEnabled = false
+        config.debugEnabled = true
         config.debugOutputDirectory = debugRunDirectory
-        config.debugSaveInitialLatent = false
-        config.debugSaveDitOutputEachStep = false
-        config.debugSaveLatentAfterSchedulerEachStep = false
+        config.debugSaveInitialLatent = true    
+        config.debugSaveDitOutputEachStep = true
+        config.debugSaveLatentAfterSchedulerEachStep = true
         config.debugSkipVaeDecode = false
         print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
 
-        let resourceURLs = [transformerURL, vaeDecoderURL, embeddingsURL]
+        let resourceURLs = transformerStageURLs + [vaeDecoderURL, embeddingsURL]
         let accessFlags = resourceURLs.map { $0.startAccessingSecurityScopedResource() }
         defer {
             for (url, granted) in zip(resourceURLs, accessFlags) where granted {
