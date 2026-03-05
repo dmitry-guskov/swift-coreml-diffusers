@@ -97,7 +97,7 @@ final class ZImagePipelineLoader {
     private func loadUnchecked() throws -> ZImagePipeline {
         print("[PipelineLoader] loadUnchecked.start")
         let mlConfig = MLModelConfiguration()
-        mlConfig.computeUnits = .cpuOnly
+        mlConfig.computeUnits = computeUnits
         print("[PipelineLoader] computeUnits = \(mlConfig.computeUnits) (requested: \(computeUnits))")
 
         let stages: [URL]
