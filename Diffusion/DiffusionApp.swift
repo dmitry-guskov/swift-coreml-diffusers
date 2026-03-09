@@ -22,7 +22,7 @@ let deviceHas6GBOrMore = ProcessInfo.processInfo.physicalMemory > 5910000000   /
 let deviceHas8GBOrMore = ProcessInfo.processInfo.physicalMemory > 7900000000   // Reported by iOS 17.0.2 on iPhone 15 Pro Max: 8021032960
 
 let deviceSupportsQuantization = {
-    if #available(iOS 17, *) {
+    if #available(iOS 18, *) {
         true
     } else {
         false

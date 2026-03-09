@@ -4,11 +4,5 @@
 <dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-	<key>NSDocumentsFolderUsageDescription</key>
-	<string>This app needs access to your files to load ML model weights and embeddings.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Used for model downloads.</string>
 </dict>
 </plist>

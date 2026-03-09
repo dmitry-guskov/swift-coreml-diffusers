@@ -241,8 +241,10 @@ public struct Dit: ResourceManaging {
                         }
 
                         print("[Dit] Running stage \(stageIndex)...")
+                        let inferenceStart = CFAbsoluteTimeGetCurrent()
                         let r = try model.predictions(fromBatch: inputBatch)
-                        print("[Dit] Stage \(stageIndex) succeeded")
+                        let inferenceElapsed = CFAbsoluteTimeGetCurrent() - inferenceStart
+                        print("[Dit] Stage \(stageIndex) succeeded in \(String(format: "%.2f", inferenceElapsed))s")
                         return r
                     }
                     if shouldUnload {

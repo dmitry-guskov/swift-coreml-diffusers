@@ -1,11 +1,11 @@
-// swift-tools-version: 5.8
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "stable-diffusion",
     platforms: [
-        .macOS(.v11),
-        .iOS(.v14),
+        .macOS(.v15),
+        .iOS(.v18),
     ],
     products: [
         .library(name: "StableDiffusion", targets: ["StableDiffusion"]),

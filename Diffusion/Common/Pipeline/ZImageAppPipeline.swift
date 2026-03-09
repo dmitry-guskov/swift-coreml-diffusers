@@ -91,7 +91,7 @@ final class ZImageAppPipeline: AppPipeline {
         config.debugSaveDitOutputEachStep = true
         config.debugSaveLatentAfterSchedulerEachStep = true
         config.debugSkipVaeDecode = false
-        print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
+        // print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
 
         let resourceURLs = transformerStageURLs + [vaeDecoderURL, embeddingsURL]
         let accessFlags = resourceURLs.map { $0.startAccessingSecurityScopedResource() }
