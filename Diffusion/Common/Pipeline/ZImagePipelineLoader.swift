@@ -29,6 +29,7 @@ enum ZImagePipelineLoaderError: LocalizedError {
     case missingVaeDecoder(path: String)
     case missingEmbeddings(path: String)
     case missingLoRA(path: String)
+    case invalidLoRAWiring(stageIndex: Int, path: String)
 
     var errorDescription: String? {
         switch self {
@@ -40,6 +41,11 @@ enum ZImagePipelineLoaderError: LocalizedError {
             return "Missing embeddings tensor file at path: \(path)"
         case .missingLoRA(let path):
             return "Missing LoRA safetensors file at path: \(path)"
+        case .invalidLoRAWiring(let stageIndex, let path):
+            return """
+            Transformer stage \(stageIndex) declares LoRA inputs but the compiled model does not use them: \(path). \
+            Re-export the Z-Image chunks so lora_vec and lora_scale are wired into the graph.
+            """
         }
     }
 }
@@ -96,6 +102,43 @@ final class ZImagePipelineLoader {
            !FileManager.default.fileExists(atPath: loraURL.path) {
             throw ZImagePipelineLoaderError.missingLoRA(path: loraURL.path)
         }
+        try validateLoRAWiringIfNeeded()
+    }
+
+    private func validateLoRAWiringIfNeeded() throws {
+        guard config.loraURL != nil else { return }
+
+        for (stageIndex, stageURL) in config.transformerStageURLs.enumerated() where stageIndex > 0 {
+            let milURL = stageURL.appendingPathComponent("model.mil", isDirectory: false)
+            guard let mil = try? String(contentsOf: milURL, encoding: .utf8) else {
+                continue
+            }
+
+            let usesVector = milUsesLoRAInput(named: "lora_vec", temporaryName: "lora_vec_tmp", in: mil)
+            let usesScale = milUsesLoRAInput(named: "lora_scale", temporaryName: "lora_scale_tmp", in: mil)
+
+            if !usesVector || !usesScale {
+                print("[PipelineLoader] LoRA wiring check failed for stage[\(stageIndex)] at \(stageURL.path)")
+                throw ZImagePipelineLoaderError.invalidLoRAWiring(stageIndex: stageIndex, path: stageURL.path)
+            }
+        }
+    }
+
+    private func milUsesLoRAInput(named name: String, temporaryName: String, in mil: String) -> Bool {
+        for rawLine in mil.split(whereSeparator: \.isNewline) {
+            let line = String(rawLine)
+            guard line.contains(name) || line.contains(temporaryName) else {
+                continue
+            }
+            if line.contains("func main<") {
+                continue
+            }
+            if line.contains("identity(x = \(name))") || line.contains("identity(x = \(temporaryName))") {
+                continue
+            }
+            return true
+        }
+        return false
     }
 
     private func withResourceAccess<T>(_ body: () throws -> T) throws -> T {

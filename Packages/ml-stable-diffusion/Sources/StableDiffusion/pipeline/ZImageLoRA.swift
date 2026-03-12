@@ -48,11 +48,13 @@ final class ZImageLoRAInputProvider {
     }
 
     private static let targets: [Target] = [
+        // Match the stage-vector packing order used by the LoRA chunking /
+        // equivalence tooling that produced the Core ML export.
         Target(path: "adaLN_modulation.0", aShape: [rank, 256], bShape: [15360, rank]),
-        Target(path: "attention.to_q", aShape: [rank, 3840], bShape: [3840, rank]),
         Target(path: "attention.to_k", aShape: [rank, 3840], bShape: [3840, rank]),
-        Target(path: "attention.to_v", aShape: [rank, 3840], bShape: [3840, rank]),
         Target(path: "attention.to_out.0", aShape: [rank, 3840], bShape: [3840, rank]),
+        Target(path: "attention.to_q", aShape: [rank, 3840], bShape: [3840, rank]),
+        Target(path: "attention.to_v", aShape: [rank, 3840], bShape: [3840, rank]),
         Target(path: "feed_forward.w1", aShape: [rank, 3840], bShape: [10240, rank]),
         Target(path: "feed_forward.w2", aShape: [rank, 10240], bShape: [3840, rank]),
         Target(path: "feed_forward.w3", aShape: [rank, 3840], bShape: [10240, rank]),
