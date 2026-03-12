@@ -178,13 +178,40 @@ class GenerationContext: ObservableObject {
             path == "\(legacyDocumentsRoot)/z_image_lora.safetensors"
         }
 
-        if isLegacyTransformerPath(transformerModelPath) {
+        func resolvedBookmarkPath(_ bookmarkData: Data?) -> String? {
+            guard let bookmarkData else { return nil }
+            var isStale = false
+            do {
+                #if os(macOS)
+                let resolvedURL = try URL(
+                    resolvingBookmarkData: bookmarkData,
+                    options: [.withSecurityScope],
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &isStale
+                )
+                #else
+                let resolvedURL = try URL(
+                    resolvingBookmarkData: bookmarkData,
+                    options: [],
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &isStale
+                )
+                #endif
+                return resolvedURL.path
+            } catch {
+                return nil
+            }
+        }
+
+        let transformerBookmarkPath = resolvedBookmarkPath(Settings.shared.transformerModelBookmark)
+        if isLegacyTransformerPath(transformerModelPath) || isLegacyTransformerPath(transformerBookmarkPath) {
             transformerModelPath = nil
             Settings.shared.transformerModelPath = nil
             Settings.shared.transformerModelBookmark = nil
         }
 
-        if isLegacyLoRAPath(externalLoRAPath) {
+        let loraBookmarkPath = resolvedBookmarkPath(Settings.shared.externalLoRABookmark)
+        if isLegacyLoRAPath(externalLoRAPath) || isLegacyLoRAPath(loraBookmarkPath) {
             externalLoRAPath = nil
             Settings.shared.externalLoRAPath = nil
             Settings.shared.externalLoRABookmark = nil
@@ -595,6 +622,15 @@ class GenerationContext: ObservableObject {
             refreshBookmark: { Settings.shared.initialLatentBookmark = $0 },
             resourceLabel: "Initial latent"
         ).detail
+    }
+
+    func logResolvedModelPaths() {
+        for (index, url) in transformerStageURLs.enumerated() {
+            print("[ZImagePaths] transformerStage[\(index)]=\(url.path)")
+        }
+        print("[ZImagePaths] vaeDecoder=\(vaeDecoderModelURL.path)")
+        print("[ZImagePaths] textEmbeddings=\(effectiveEmbeddingsURL.path)")
+        print("[ZImagePaths] lora=\(effectiveLoRAURL?.path ?? "<none>")")
     }
 
     func setTransformerModelURL(_ url: URL?) {

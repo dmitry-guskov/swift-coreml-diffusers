@@ -1225,6 +1225,11 @@ struct GenerationView: View {
                             reloadCheckpoint()
                         }
                         .buttonStyle(.bordered)
+                        Button("Print Full Paths") {
+                            generation.logResolvedModelPaths()
+                            modelPreparationStatus = "Printed resolved model paths to console."
+                        }
+                        .buttonStyle(.bordered)
                         Text("Transformer: \(generation.transformerModelPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Default path (\(generation.transformerModelURL.lastPathComponent))")")
                             .font(.caption)
                             .foregroundColor(.secondary)
