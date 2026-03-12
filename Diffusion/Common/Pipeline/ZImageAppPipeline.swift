@@ -90,6 +90,7 @@ final class ZImageAppPipeline: AppPipeline {
         config.debugSaveInitialLatent = true    
         config.debugSaveDitOutputEachStep = true
         config.debugSaveLatentAfterSchedulerEachStep = true
+        config.debugSaveStageOutputs = true
         config.debugSkipVaeDecode = false
         // print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
 

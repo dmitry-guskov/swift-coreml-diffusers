@@ -8,6 +8,22 @@
 import Foundation
 import CoreML
 
+/// Context passed from the pipeline to enable per-stage tensor dumps.
+@available(iOS 17.0, macOS 14.0, *)
+public struct DitDebugContext {
+    public let stagesDirectory: URL
+    public let stepIndex: Int
+    public let timestep: Int
+    public let seed: UInt32
+
+    public init(stagesDirectory: URL, stepIndex: Int, timestep: Int, seed: UInt32) {
+        self.stagesDirectory = stagesDirectory
+        self.stepIndex = stepIndex
+        self.timestep = timestep
+        self.seed = seed
+    }
+}
+
 /// DiT (Diffusion Transformer) noise prediction model for Z-Image
 ///
 /// Supports stagewise execution where each stage has a different I/O contract:
@@ -165,7 +181,8 @@ public struct Dit: ResourceManaging {
     func predictNoise(
         latents: [MLShapedArray<Float32>],
         timeStep: Int,
-        hiddenStates: MLShapedArray<Float32>
+        hiddenStates: MLShapedArray<Float32>,
+        debugContext: DitDebugContext? = nil
     ) throws -> [MLShapedArray<Float32>] {
         let tNormalized = Float32(1000 - timeStep) / 1000.0
         let t = MLShapedArray<Float32>(scalars: [tNormalized], shape: [1])
@@ -180,7 +197,7 @@ public struct Dit: ResourceManaging {
         }
         let batch = MLArrayBatchProvider(array: inputs)
         print("[Dit] predictNoise: timeStep=\(timeStep) latent_shape=\(latents.first?.shape ?? []) cap_feats_shape=\(hiddenStates.shape) batch_count=\(batch.count)")
-        let results = try predictions(from: batch)
+        let results = try predictions(from: batch, debugContext: debugContext)
         var noise: [MLShapedArray<Float32>] = []
         noise.reserveCapacity(results.count)
         for i in 0..<results.count {
@@ -206,7 +223,7 @@ public struct Dit: ResourceManaging {
     /// Its single output tensor is mapped to `hidden_tokens` and merged with
     /// `timestep` and `cap_feats` from the original batch for stages 1‒5.
     /// Each stage is unloaded immediately after use when running multi-stage.
-    func predictions(from batch: MLBatchProvider) throws -> MLBatchProvider {
+    func predictions(from batch: MLBatchProvider, debugContext: DitDebugContext? = nil) throws -> MLBatchProvider {
         let shouldUnload = unloadStagesAfterUse
 
         let originalInputs = batch.arrayOfFeatureValueDictionaries
@@ -279,6 +296,10 @@ public struct Dit: ResourceManaging {
                             else { finiteCount += 1 }
                         }
                         print("[Dit] Stage \(stageIndex) output stats: finite=\(finiteCount) nan=\(nanCount) inf=\(infCount) total=\(ma.count)")
+
+                        if let ctx = debugContext {
+                            try Self.writeStageOutput(ma, stageIndex: stageIndex, context: ctx)
+                        }
                     }
 
                     var next = prev
@@ -299,6 +320,70 @@ public struct Dit: ResourceManaging {
             }
         }
         return lastResults
+    }
+
+    // MARK: - Stage debug output
+
+    private static func writeStageOutput(
+        _ ma: MLMultiArray,
+        stageIndex: Int,
+        context ctx: DitDebugContext
+    ) throws {
+        let stem = "step\(ctx.stepIndex)_t\(ctx.timestep)_stage\(stageIndex)"
+        let binURL = ctx.stagesDirectory.appending(path: "\(stem).bin")
+        let jsonURL = ctx.stagesDirectory.appending(path: "\(stem).json")
+
+        let count = ma.count
+        let shape = ma.shape.map(\.intValue)
+        let fp32 = MLMultiArray(concatenating: [ma], axis: 0, dataType: .float32)
+        let ptr = fp32.dataPointer.bindMemory(to: Float32.self, capacity: count)
+
+        var nanCount = 0, infCount = 0, finiteCount = 0
+        var fMin = Float.greatestFiniteMagnitude
+        var fMax = -Float.greatestFiniteMagnitude
+        var sum: Double = 0, sumSq: Double = 0
+
+        let raw = UnsafeMutableBufferPointer(start: UnsafeMutablePointer(mutating: ptr), count: count)
+        for v in raw {
+            if v.isNaN { nanCount += 1 }
+            else if !v.isFinite { infCount += 1 }
+            else {
+                finiteCount += 1
+                fMin = min(fMin, v); fMax = max(fMax, v)
+                let d = Double(v); sum += d; sumSq += d * d
+            }
+        }
+
+        let data = Data(bytes: ptr, count: count * MemoryLayout<Float32>.size)
+        try data.write(to: binURL, options: .atomic)
+
+        let mean = finiteCount > 0 ? sum / Double(finiteCount) : 0
+        let variance = finiteCount > 0 ? max(0, sumSq / Double(finiteCount) - mean * mean) : 0
+
+        let meta: [String: Any] = [
+            "kind": "stage_output",
+            "stage_index": stageIndex,
+            "step_index": ctx.stepIndex,
+            "timestep": ctx.timestep,
+            "seed": ctx.seed,
+            "shape": shape,
+            "dtype": "float32",
+            "layout": "row_major",
+            "scalar_count": count,
+            "byte_count": data.count,
+            "filename": binURL.lastPathComponent,
+            "nan_count": nanCount,
+            "inf_count": infCount,
+            "finite_count": finiteCount,
+            "finite_min": finiteCount > 0 ? fMin : NSNull(),
+            "finite_max": finiteCount > 0 ? fMax : NSNull(),
+            "finite_mean": finiteCount > 0 ? mean : NSNull(),
+            "finite_std": finiteCount > 0 ? sqrt(variance) : NSNull(),
+        ]
+        let jsonData = try JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted, .sortedKeys])
+        try jsonData.write(to: jsonURL, options: .atomic)
+
+        print("[Dit] Saved stage \(stageIndex) output → \(binURL.lastPathComponent) (\(count) floats, shape=\(shape))")
     }
 }
 

@@ -77,6 +77,9 @@ public struct ZImageConfiguration {
     /// Save latent tensor at each step after scheduler update
     public var debugSaveLatentAfterSchedulerEachStep: Bool = false
 
+    /// Save each stage's output tensor inside every denoising step
+    public var debugSaveStageOutputs: Bool = false
+
     /// Skip VAE decode and export final latent instead
     public var debugSkipVaeDecode: Bool = false
 
@@ -149,7 +152,7 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
     }
 
     private let expectedLatentShape = [1, 16, 64, 64]
-    private let expectedEmbeddingShape = [1, 77, 2560]
+    private let expectedEmbeddingShape = [1, 500, 2560]
     private var expectedEmbeddingFloatCount: Int { expectedEmbeddingShape[0] * expectedEmbeddingShape[1] * expectedEmbeddingShape[2] }
     private var expectedEmbeddingByteCount: Int { expectedEmbeddingFloatCount * MemoryLayout<Float32>.size }
     private var expectedLatentFloatCount: Int { expectedLatentShape.reduce(1, *) }
@@ -281,11 +284,26 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
                     )
                 }
 
+                // Build per-step debug context for stage-level tensor dumps
+                let ditDebug: DitDebugContext? = {
+                    guard config.debugEnabled, config.debugSaveStageOutputs,
+                          let dir = debugDirectory else { return nil }
+                    let stagesDir = dir.appending(path: "stages")
+                    try? FileManager.default.createDirectory(at: stagesDir, withIntermediateDirectories: true)
+                    return DitDebugContext(
+                        stagesDirectory: stagesDir,
+                        stepIndex: step,
+                        timestep: t,
+                        seed: config.seed
+                    )
+                }()
+
                 // Predict noise residual conditioned on text embeddings
                 let noise = try dit.predictNoise(
                     latents: [latent],
                     timeStep: t,
-                    hiddenStates: hiddenStates
+                    hiddenStates: hiddenStates,
+                    debugContext: ditDebug
                 )
                 if config.debugEnabled {
                     logFiniteStats(
