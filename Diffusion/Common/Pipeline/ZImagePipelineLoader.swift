@@ -66,14 +66,15 @@ final class ZImagePipelineLoader {
             print("[PipelineLoader]   stage[\(i)] = \(url.path)  (exists: \(exists))")
         }
         let vaeExists = fm.fileExists(atPath: config.vaeDecoderURL.path)
-        print("[PipelineLoader]   vaeDecoder = \(config.vaeDecoderURL.path)  (exists: \(vaeExists))")
+        print("[PipelineLoader]   vaeDecoderPath = \(config.vaeDecoderURL.path)  (exists: \(vaeExists))")
         let embExists = fm.fileExists(atPath: config.embeddingsURL.path)
         print("[PipelineLoader]   embeddings = \(config.embeddingsURL.path)  (exists: \(embExists))")
+        print("[PipelineLoader]   loraSelected = \(config.loraURL != nil)")
         if let loraURL = config.loraURL {
             let loraExists = fm.fileExists(atPath: loraURL.path)
-            print("[PipelineLoader]   lora = \(loraURL.path)  (exists: \(loraExists))")
+            print("[PipelineLoader]   loraPath = \(loraURL.path)  (exists: \(loraExists))")
         } else {
-            print("[PipelineLoader]   lora = <none>")
+            print("[PipelineLoader]   loraPath = <none>")
         }
         print("[PipelineLoader] ===== End resource manifest =====")
     }

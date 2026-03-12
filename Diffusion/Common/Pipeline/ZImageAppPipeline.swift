@@ -59,6 +59,12 @@ final class ZImageAppPipeline: AppPipeline {
         print("[ZImageAppPipeline] Memory warning handled - resources unloaded")
     }
 
+    private func logRunResources() {
+        print("[ZImageRun] vaeDecoderPath=\(vaeDecoderURL.path)")
+        print("[ZImageRun] loraSelected=\(loraURL != nil)")
+        print("[ZImageRun] loraPath=\(loraURL?.path ?? "<none>")")
+    }
+
     func generate(
         prompt _: String,
         negativePrompt _: String,
@@ -96,6 +102,7 @@ final class ZImageAppPipeline: AppPipeline {
         config.debugSaveLatentAfterSchedulerEachStep = true
         config.debugSkipVaeDecode = false
         print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
+        logRunResources()
 
         let resourceURLs = transformerStageURLs + [vaeDecoderURL, embeddingsURL] + (loraURL.map { [$0] } ?? [])
         let accessFlags = resourceURLs.map { $0.startAccessingSecurityScopedResource() }

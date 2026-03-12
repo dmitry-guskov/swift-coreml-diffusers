@@ -23,9 +23,9 @@ public final class ManagedMLModel: ResourceManaging {
     /// Queue to protect access to loaded model
     var queue: DispatchQueue
     
-    /// Model name for logging
-    private var modelName: String {
-        modelURL.lastPathComponent
+    /// Model path for logging
+    private var modelPath: String {
+        modelURL.path
     }
 
     /// Create a managed model given its location and desired loaded configuration
@@ -52,9 +52,10 @@ public final class ManagedMLModel: ResourceManaging {
     public func unloadResources() {
         queue.sync {
             if loadedModel != nil {
-                logMemory("ManagedMLModel[\(modelName)].unload.before")
+                print("[ManagedMLModel] Unloading model at path: \(modelPath)")
+                logMemory("ManagedMLModel[\(modelPath)].unload.before")
                 loadedModel = nil
-                logMemory("ManagedMLModel[\(modelName)].unload.after")
+                logMemory("ManagedMLModel[\(modelPath)].unload.after")
             }
         }
     }
@@ -78,14 +79,14 @@ public final class ManagedMLModel: ResourceManaging {
 
     private func loadModel() throws {
         if loadedModel == nil {
-            logMemory("ManagedMLModel[\(modelName)].load.before")
-            print("[ManagedMLModel] Loading model: \(modelName)")
+            logMemory("ManagedMLModel[\(modelPath)].load.before")
+            print("[ManagedMLModel] Loading model at path: \(modelPath)")
             let startTime = CFAbsoluteTimeGetCurrent()
             loadedModel = try MLModel(contentsOf: modelURL,
                                       configuration: configuration)
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            print("[ManagedMLModel] Loaded \(modelName) in \(String(format: "%.2f", elapsed))s")
-            logMemory("ManagedMLModel[\(modelName)].load.after")
+            print("[ManagedMLModel] Loaded model at path: \(modelPath) in \(String(format: "%.2f", elapsed))s")
+            logMemory("ManagedMLModel[\(modelPath)].load.after")
         }
     }
     
