@@ -396,6 +396,7 @@ public typealias DecoderZImage = AutoencoderKLZImage
 @available(iOS 16.0, macOS 13.0, *)
 extension CGImage {
     /// Convert a CGImage to a planar RGB `MLShapedArray` scaled to [minValue, maxValue].
+    @available(macCatalyst 17.0, *)
     @available(macOS 14.0, *)
     func planarRGBShapedArray(
         minValue: Float32 = 0.0,

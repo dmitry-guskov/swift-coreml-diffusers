@@ -51,7 +51,7 @@ final class ZImagePipelineLoader {
 
     init(
         config: ZImageBootstrapConfig,
-        computeUnits: ComputeUnits = .cpuAndNeuralEngine
+        computeUnits: ComputeUnits = .cpuOnly
     ) {
         self.config = config
         self.computeUnits = computeUnits
@@ -108,31 +108,31 @@ final class ZImagePipelineLoader {
         return try body()
     }
 
+    private let debugSingleStageMode = false // flip to true for single-model debug
+
     private func loadUnchecked() throws -> ZImagePipeline {
         print("[PipelineLoader] loadUnchecked.start")
         let mlConfig = MLModelConfiguration()
-        mlConfig.computeUnits = .cpuAndNeuralEngine
-        print("[PipelineLoader] DEBUG: overriding computeUnits to .all (was \(computeUnits))")
+        mlConfig.computeUnits = .cpuOnly
+        print("[PipelineLoader] computeUnits = \(mlConfig.computeUnits) (requested: \(computeUnits))")
 
-        let allStages = config.transformerStageURLs
-        let debugStages: [URL]
-        if allStages.count >= 2 {
-            debugStages = [allStages.first!, allStages.last!]
-            print("[PipelineLoader] DEBUG: using only stage 0 + stage \(allStages.count - 1) out of \(allStages.count)")
+        let stages: [URL]
+        if debugSingleStageMode {
+            stages = [config.transformerStageURLs.first!]
+            print("[PipelineLoader] DEBUG: single-model mode — \(stages[0].lastPathComponent)")
         } else {
-            debugStages = allStages
+            stages = config.transformerStageURLs
+            print("[PipelineLoader] Loading all \(stages.count) stages")
         }
-
-        print("[PipelineLoader] Creating ZImagePipeline with \(debugStages.count) stage(s), computeUnits=.all")
-        for (i, url) in debugStages.enumerated() {
-            print("[PipelineLoader]   debug_stage[\(i)] = \(url.lastPathComponent)")
+        for (i, url) in stages.enumerated() {
+            print("[PipelineLoader]   stage[\(i)] = \(url.lastPathComponent)")
         }
 
         let pipeline = try ZImagePipeline(
-            transformerStagesAt: debugStages,
+            transformerStagesAt: stages,
             vaeDecoderAt: config.vaeDecoderURL,
             configuration: mlConfig,
-            reduceMemory: true
+            reduceMemory: !debugSingleStageMode
         )
         print("[PipelineLoader] loadUnchecked.pipelineCreated")
         return pipeline

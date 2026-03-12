@@ -371,7 +371,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = F155202F2971093400DC009B /* Build configuration list for PBXNativeTarget "Diffusion-macOS" */;
 			buildPhases = (
-				EB7FE72529954BFF009056BD /* ShellScript */,
 				F155201D2971093300DC009B /* Sources */,
 				F155201E2971093300DC009B /* Frameworks */,
 				F155201F2971093300DC009B /* Resources */,
@@ -478,27 +477,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		EB7FE72529954BFF009056BD /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 12;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"$CONFIGURATION\" != \"Debug\" ]\nthen    \n    version=`date +%Y%m%d.%H%M%S`\n    CONFIG_FILE=${SRCROOT}/config/common.xcconfig\n    sed -e 's/^CURRENT_PROJECT_VERSION.*/CURRENT_PROJECT_VERSION = '\"$version\"'/' ${CONFIG_FILE} > ${CONFIG_FILE}.tmp\n    [[ -s ${CONFIG_FILE}.tmp ]] && {\n        mv ${CONFIG_FILE}.tmp ${CONFIG_FILE}\n    }\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		EBE755C1293E37DD00806B32 /* Sources */ = {
@@ -712,12 +690,15 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Diffusion/Preview Content\"";
-				DEVELOPMENT_TEAM = 9Y8TWFSK2Z;
+				DEVELOPMENT_TEAM = KCKAJ82249;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Diffusion/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Diffusers;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "This app needs access to your files to load ML model weights and embeddings.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Used for model downloads.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "To be able to save generated images to your Photo Library, you’ll need to allow this.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -734,9 +715,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 13.1;
-				PRODUCT_BUNDLE_IDENTIFIER = "a.lobashev.swift-image-generation";
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = dguskov.swift.t2i;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = dguskov.swift.t2i;
+				PRODUCT_BUNDLE_IDENTIFIER = "a.lobashev.swift-image-generation-fp32-stable";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -760,12 +739,15 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Diffusion/Preview Content\"";
-				DEVELOPMENT_TEAM = 9Y8TWFSK2Z;
+				DEVELOPMENT_TEAM = KCKAJ82249;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Diffusion/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Diffusers;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSDocumentsFolderUsageDescription = "This app needs access to your files to load ML model weights and embeddings.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Used for model downloads.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "To be able to save generated images to your Photo Library, you’ll need to allow this.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -782,7 +764,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 13.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dguskov.swift.t2i;
+				PRODUCT_BUNDLE_IDENTIFIER = "a.lobashev.swift-image-generation-fp32-stable";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = auto;
@@ -897,7 +879,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Diffusion-macOS/Preview Content\"";
-				DEVELOPMENT_TEAM = 2EADP68M95;
+				DEVELOPMENT_TEAM = KCKAJ82249;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Diffusion-macOS/Info.plist";
@@ -926,7 +908,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Diffusion-macOS/Preview Content\"";
-				DEVELOPMENT_TEAM = 2EADP68M95;
+				DEVELOPMENT_TEAM = 9Y8TWFSK2Z;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Diffusion-macOS/Info.plist";

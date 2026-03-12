@@ -14,7 +14,7 @@ public extension ZImagePipeline {
         }
     }
 
-    static let transformerStageCount = 6
+    static let transformerStageCount = 7
 
     static let transformerStageFileNames: [String] = (0..<transformerStageCount).map {
         "ZImageTurbo_TransformerBackbone_stage\($0).mlmodelc"
