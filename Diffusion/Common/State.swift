@@ -160,9 +160,35 @@ class GenerationContext: ObservableObject {
     private let initialLatentShapeContract = [1, 16, 64, 64]
 
     init() {
+        migrateLegacyDesktopDefaultPaths()
         #if os(iOS)
         clearStaleIOSResourcePaths()
         #endif
+    }
+
+    private func migrateLegacyDesktopDefaultPaths() {
+        let legacyDocumentsRoot = "/Users/a1111/Documents"
+
+        func isLegacyTransformerPath(_ path: String?) -> Bool {
+            guard let path else { return false }
+            return path.hasPrefix("\(legacyDocumentsRoot)/ZImageTurbo_TransformerBackbone_stage")
+        }
+
+        func isLegacyLoRAPath(_ path: String?) -> Bool {
+            path == "\(legacyDocumentsRoot)/z_image_lora.safetensors"
+        }
+
+        if isLegacyTransformerPath(transformerModelPath) {
+            transformerModelPath = nil
+            Settings.shared.transformerModelPath = nil
+            Settings.shared.transformerModelBookmark = nil
+        }
+
+        if isLegacyLoRAPath(externalLoRAPath) {
+            externalLoRAPath = nil
+            Settings.shared.externalLoRAPath = nil
+            Settings.shared.externalLoRABookmark = nil
+        }
     }
 
     /// On iOS, any path saved from a previous (failed) file-picker session may be
@@ -503,7 +529,7 @@ class GenerationContext: ObservableObject {
     }
 
     var effectiveLoRAURL: URL? {
-        externalLoRAFileURL ?? optionalDefaultResourceURL(named: "z_image_lora.safetensors")
+        externalLoRAFileURL ?? defaultResourceURL(named: "z_image_lora.safetensors")
     }
 
 
@@ -542,10 +568,8 @@ class GenerationContext: ObservableObject {
 
     var loraPathResolutionDetail: String {
         if externalLoRAPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
-            if let fallback = optionalDefaultResourceURL(named: "z_image_lora.safetensors") {
-                return "LoRA: no external path configured; using default resource (\(fallback.path))."
-            }
-            return "LoRA: no external path configured."
+            let fallback = defaultResourceURL(named: "z_image_lora.safetensors")
+            return "LoRA: no external path configured; using default resource (\(fallback.path))."
         }
         return resolveOptionalPathWithDetail(
             path: externalLoRAPath,
@@ -844,13 +868,6 @@ class GenerationContext: ObservableObject {
         #endif
     }
 
-    private func optionalDefaultResourceURL(named resourceName: String) -> URL? {
-        let url = defaultResourceURL(named: resourceName)
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            return nil
-        }
-        return url
-    }
 }
 
 class Settings {
