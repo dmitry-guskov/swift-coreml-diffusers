@@ -880,6 +880,9 @@ class GenerationContext: ObservableObject {
 
     private func defaultResourceURL(named resourceName: String) -> URL {
         #if os(iOS)
+        if runningOnMac, let hardcodedURL = hardcodedDesktopDefaultResourceURL(named: resourceName) {
+            return hardcodedURL
+        }
         let fm = FileManager.default
         let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents", isDirectory: true)
