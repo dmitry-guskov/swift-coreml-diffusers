@@ -25,10 +25,17 @@ public extension ZImagePipeline {
         public let vaeDecoderURL: URL
 
         public init(resourcesAt baseURL: URL) {
-            transformerStageURLs = ZImagePipeline.transformerStageFileNames.map {
-                baseURL.appending(path: $0)
+            let fm = FileManager.default
+            transformerStageURLs = (0..<ZImagePipeline.transformerStageCount).map { i in
+                let stem = "ZImageTurbo_TransformerBackbone_stage\(i)"
+                let compiled = baseURL.appending(path: "\(stem).mlmodelc")
+                if fm.fileExists(atPath: compiled.path) { return compiled }
+                return baseURL.appending(path: "\(stem).mlpackage")
             }
-            vaeDecoderURL = baseURL.appending(path: "VAEDecoder.mlmodelc")
+            let compiledVAE = baseURL.appending(path: "VAEDecoder.mlmodelc")
+            vaeDecoderURL = fm.fileExists(atPath: compiledVAE.path)
+                ? compiledVAE
+                : baseURL.appending(path: "VAEDecoder.mlpackage")
         }
     }
 

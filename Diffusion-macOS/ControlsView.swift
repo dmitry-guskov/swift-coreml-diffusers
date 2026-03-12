@@ -320,7 +320,7 @@ struct ControlsView: View {
     private func applyModelSelection(url: URL, target: MacPathPickerTarget) {
         guard validateSelectedModelDirectory(url) else {
             let modelName = (target == .transformer) ? "Transformer" : "VAE"
-            pipelineState = .failed(PathSelectionError(message: "\(modelName) selection must be a readable .mlmodelc directory."))
+            pipelineState = .failed(PathSelectionError(message: "\(modelName) selection must be a readable .mlmodelc or .mlpackage directory."))
             return
         }
 
@@ -357,15 +357,18 @@ struct ControlsView: View {
     }
 
     private func validateSelectedModelDirectory(_ url: URL) -> Bool {
-        guard url.pathExtension.lowercased() == "mlmodelc" else {
+        let ext = url.pathExtension.lowercased()
+        guard ext == "mlmodelc" || ext == "mlpackage" else {
             return false
         }
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
             return false
         }
-        let metadataPath = url.appending(path: "metadata.json").path
-        return FileManager.default.fileExists(atPath: metadataPath)
+        if ext == "mlmodelc" {
+            return FileManager.default.fileExists(atPath: url.appending(path: "metadata.json").path)
+        }
+        return FileManager.default.fileExists(atPath: url.appending(path: "Manifest.json").path)
     }
 
     private func embeddingsStatusText() -> String {

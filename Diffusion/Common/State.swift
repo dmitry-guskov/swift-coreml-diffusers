@@ -443,16 +443,24 @@ class GenerationContext: ObservableObject {
         let resolved = transformerModelURL
         let baseDir = resolved.deletingLastPathComponent()
         let fileName = resolved.deletingPathExtension().lastPathComponent
-        let ext = resolved.pathExtension.isEmpty ? "mlmodelc" : resolved.pathExtension
+        let preferredExt = resolved.pathExtension.isEmpty ? "mlmodelc" : resolved.pathExtension
+        let fallbackExts = ["mlmodelc", "mlpackage"]
 
         if let range = fileName.range(of: "_stage\\d+$", options: .regularExpression) {
             let prefix = String(fileName[..<range.lowerBound]) + "_stage"
             let fm = FileManager.default
             var stages: [(index: Int, url: URL)] = []
             for i in 0..<100 {
-                let candidate = baseDir.appending(path: "\(prefix)\(i).\(ext)")
-                guard fm.fileExists(atPath: candidate.path) else { break }
-                stages.append((i, candidate))
+                let preferred = baseDir.appending(path: "\(prefix)\(i).\(preferredExt)")
+                if fm.fileExists(atPath: preferred.path) {
+                    stages.append((i, preferred))
+                    continue
+                }
+                let found = fallbackExts.first(where: {
+                    fm.fileExists(atPath: baseDir.appending(path: "\(prefix)\(i).\($0)").path)
+                })
+                guard let found else { break }
+                stages.append((i, baseDir.appending(path: "\(prefix)\(i).\(found)")))
             }
             if !stages.isEmpty {
                 return stages.sorted(by: { $0.index < $1.index }).map(\.url)

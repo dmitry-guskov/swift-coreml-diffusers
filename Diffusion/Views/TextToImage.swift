@@ -274,16 +274,16 @@ private func formatDuration(_ seconds: Double) -> String {
     return String(format: "%02d:%02d", minutes, remainder)
 }
 
-private func findMlmodelcParent(from url: URL) -> URL? {
-    // If the URL itself is .mlmodelc, return it
-    if url.pathExtension.lowercased() == "mlmodelc" {
+private let supportedModelExtensions: Set<String> = ["mlmodelc", "mlpackage"]
+
+private func findModelParent(from url: URL) -> URL? {
+    if supportedModelExtensions.contains(url.pathExtension.lowercased()) {
         return url
     }
     
-    // Walk up the path looking for .mlmodelc parent
     var current = url.deletingLastPathComponent()
     for _ in 0..<5 {
-        if current.pathExtension.lowercased() == "mlmodelc" {
+        if supportedModelExtensions.contains(current.pathExtension.lowercased()) {
             return current
         }
         let parent = current.deletingLastPathComponent()
@@ -1023,15 +1023,13 @@ struct GenerationView: View {
     // NSFileCoordinator is used so iCloud placeholder files are downloaded first.
 
     private func selectTransformerModel(from url: URL) {
-        // Start scope synchronously while we still hold the picker's grant.
         let accessed = url.startAccessingSecurityScopedResource()
 
-        // Resolve the .mlmodelc directory before going async.
-        let mlmodelcURL = (url.pathExtension.lowercased() == "mlmodelc")
-            ? url : findMlmodelcParent(from: url)
-        guard let mlmodelcURL else {
+        let modelURL = supportedModelExtensions.contains(url.pathExtension.lowercased())
+            ? url : findModelParent(from: url)
+        guard let modelURL else {
             if accessed { url.stopAccessingSecurityScopedResource() }
-            checkpointError = "Please select a .mlmodelc folder."
+            checkpointError = "Please select a .mlmodelc or .mlpackage folder."
             return
         }
 
@@ -1041,7 +1039,7 @@ struct GenerationView: View {
             do {
                 let folder = Settings.shared.importedResourcesURL()
                 let copied = try await Task.detached(priority: .userInitiated) {
-                    try importExternalResource(pickerURL: mlmodelcURL, into: folder)
+                    try importExternalResource(pickerURL: modelURL, into: folder)
                 }.value
                 await MainActor.run {
                     generation.setTransformerModelPath(copied.path)
@@ -1059,11 +1057,11 @@ struct GenerationView: View {
     private func selectVaeDecoderModel(from url: URL) {
         let accessed = url.startAccessingSecurityScopedResource()
 
-        let mlmodelcURL = (url.pathExtension.lowercased() == "mlmodelc")
-            ? url : findMlmodelcParent(from: url)
-        guard let mlmodelcURL else {
+        let modelURL = supportedModelExtensions.contains(url.pathExtension.lowercased())
+            ? url : findModelParent(from: url)
+        guard let modelURL else {
             if accessed { url.stopAccessingSecurityScopedResource() }
-            checkpointError = "Please select a .mlmodelc folder."
+            checkpointError = "Please select a .mlmodelc or .mlpackage folder."
             return
         }
 
@@ -1073,7 +1071,7 @@ struct GenerationView: View {
             do {
                 let folder = Settings.shared.importedResourcesURL()
                 let copied = try await Task.detached(priority: .userInitiated) {
-                    try importExternalResource(pickerURL: mlmodelcURL, into: folder)
+                    try importExternalResource(pickerURL: modelURL, into: folder)
                 }.value
                 await MainActor.run {
                     generation.setVaeDecoderModelPath(copied.path)
@@ -1156,7 +1154,7 @@ struct GenerationView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Checkpoint Paths")
                             .font(.headline)
-                        Text("Open the .mlmodelc folder and select any file inside it")
+                        Text("Open a .mlmodelc or .mlpackage folder and select any file inside it")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         HStack {
@@ -1204,8 +1202,8 @@ struct GenerationView: View {
                                 .font(.caption2).foregroundColor(.secondary)
                             Group {
                                 Text("• zimage_embeddings.bin")
-                                Text("• ZImageTurbo_TransformerBackbone.mlmodelc")
-                                Text("• VAEDecoder.mlmodelc")
+                                Text("• ZImageTurbo_TransformerBackbone.mlmodelc/.mlpackage")
+                                Text("• VAEDecoder.mlmodelc/.mlpackage")
                             }
                             .font(.caption2)
                             .foregroundColor(.secondary)

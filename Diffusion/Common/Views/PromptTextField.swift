@@ -16,7 +16,7 @@ struct PromptTextField: View {
     @Binding var textBinding: String
     @Binding var model: String // kept for call-site compatibility
 
-    private let maxTokenCount = 77
+    private let maxTokenCount = 500
     
     private var textColor: Color {
         switch tokenCount {

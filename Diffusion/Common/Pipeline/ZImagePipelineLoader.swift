@@ -163,7 +163,7 @@ final class ZImagePipelineLoader {
             try validateResources()
             try logModelContract()
             print("[ZImageSmoke] embeddings_path=\(config.embeddingsURL.path)")
-            print("[ZImageSmoke] expected_latents_shape=[1,16,64,64] expected_cap_feats_shape=[1,77,2560]")
+            print("[ZImageSmoke] expected_latents_shape=[1,16,64,64] expected_cap_feats_shape=[1,500,2560]")
 
             print("[SmokeTest] beforePipelineCreate")
             var pipeline = try loadUnchecked()

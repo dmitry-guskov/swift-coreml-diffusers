@@ -167,16 +167,14 @@ public struct Dit: ResourceManaging {
         timeStep: Int,
         hiddenStates: MLShapedArray<Float32>
     ) throws -> [MLShapedArray<Float32>] {
-        let tNormalized = Float16(Float(1000 - timeStep) / 1000.0)
-        let t = MLShapedArray<Float16>(scalars: [tNormalized], shape: [1])
-        let hiddenStatesF16 = MLShapedArray<Float16>(converting: hiddenStates)
+        let tNormalized = Float32(1000 - timeStep) / 1000.0
+        let t = MLShapedArray<Float32>(scalars: [tNormalized], shape: [1])
 
         let inputs: [MLDictionaryFeatureProvider] = try latents.map { latent in
-            let latentF16 = MLShapedArray<Float16>(converting: latent)
             let dict: [String: Any] = [
-                "latents": MLMultiArray(latentF16),
+                "latents": MLMultiArray(latent),
                 "timestep": MLMultiArray(t),
-                "cap_feats": MLMultiArray(hiddenStatesF16)
+                "cap_feats": MLMultiArray(hiddenStates)
             ]
             return try MLDictionaryFeatureProvider(dictionary: dict)
         }
@@ -230,6 +228,7 @@ public struct Dit: ResourceManaging {
                                 if let ht = entry["hidden_tokens"]?.multiArrayValue, let constraint = htDesc.multiArrayConstraint {
                                     let expectedShape = constraint.shape.map(\.intValue)
                                     let actualShape = ht.shape.map(\.intValue)
+                                    print("[Dit] Stage \(stageIndex) input hidden_tokens: dtype=\(ht.dataType.rawValue) shape=\(actualShape) expected_dtype=\(constraint.dataType.rawValue) expected_shape=\(expectedShape)")
                                     if expectedShape != actualShape {
                                         throw Error.incompatibleHiddenTokens(stageIndex: stageIndex, expected: expectedShape, actual: actualShape)
                                     }
@@ -237,6 +236,12 @@ public struct Dit: ResourceManaging {
                                         throw Error.incompatibleHiddenTokensDtype(stageIndex: stageIndex, expected: constraint.dataType, actual: ht.dataType)
                                     }
                                 }
+                            }
+                        }
+
+                        for (key, fv) in accumulated.first ?? [:] {
+                            if let ma = fv.multiArrayValue {
+                                print("[Dit] Stage \(stageIndex) input '\(key)': dtype=\(ma.dataType.rawValue) shape=\(ma.shape.map(\.intValue))")
                             }
                         }
 
@@ -262,8 +267,28 @@ public struct Dit: ResourceManaging {
                         throw Error.missingOutputFeature(stageIndex: stageIndex)
                     }
 
+                    if let ma = outputValue.multiArrayValue {
+                        let shape = ma.shape.map(\.intValue)
+                        print("[Dit] Stage \(stageIndex) output: key='\(outputKey)' dtype=\(ma.dataType.rawValue) shape=\(shape)")
+                        var finiteCount = 0, nanCount = 0, infCount = 0
+                        let ptr = ma.dataPointer.bindMemory(to: Float32.self, capacity: ma.count)
+                        for idx in 0..<ma.count {
+                            let v = ptr[idx]
+                            if v.isNaN { nanCount += 1 }
+                            else if !v.isFinite { infCount += 1 }
+                            else { finiteCount += 1 }
+                        }
+                        print("[Dit] Stage \(stageIndex) output stats: finite=\(finiteCount) nan=\(nanCount) inf=\(infCount) total=\(ma.count)")
+                    }
+
                     var next = prev
-                    next["hidden_tokens"] = outputValue
+                    if let ma = outputValue.multiArrayValue, ma.dataType != .float32 {
+                        print("[Dit] Stage \(stageIndex) output is \(ma.dataType.rawValue), casting to float32")
+                        let fp32 = MLMultiArray(concatenating: [ma], axis: 0, dataType: .float32)
+                        next["hidden_tokens"] = MLFeatureValue(multiArray: fp32)
+                    } else {
+                        next["hidden_tokens"] = outputValue
+                    }
                     next.removeValue(forKey: "latents")
                     return next
                 }
