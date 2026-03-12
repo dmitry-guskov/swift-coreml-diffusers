@@ -168,14 +168,18 @@ class GenerationContext: ObservableObject {
 
     private func migrateLegacyDesktopDefaultPaths() {
         let legacyDocumentsRoot = "/Users/a1111/Documents"
+        let legacyDownloadsTransformerPrefix = "/Users/a1111/Downloads/zimage_true_stage_fp32_7stage_lora_as_input_activation_space/ZImageTurbo_TransformerBackbone_stage"
+        let legacyDownloadsLoRAPath = "/Users/a1111/Downloads/z_image_lora.safetensors"
 
         func isLegacyTransformerPath(_ path: String?) -> Bool {
             guard let path else { return false }
             return path.hasPrefix("\(legacyDocumentsRoot)/ZImageTurbo_TransformerBackbone_stage")
+                || path.hasPrefix(legacyDownloadsTransformerPrefix)
         }
 
         func isLegacyLoRAPath(_ path: String?) -> Bool {
             path == "\(legacyDocumentsRoot)/z_image_lora.safetensors"
+                || path == legacyDownloadsLoRAPath
         }
 
         func resolvedBookmarkPath(_ bookmarkData: Data?) -> String? {
@@ -851,18 +855,34 @@ class GenerationContext: ObservableObject {
 
     private var hardcodedDesktopTransformerBaseURL: URL {
         URL(
-            fileURLWithPath: "/Users/a1111/Downloads/zimage_true_stage_fp32_7stage_lora_as_input_activation_space/",
+            fileURLWithPath: "/Users/a1111/Documents/zimage_true_stage_fp32_7stage_lora_as_input_activation_space/",
             isDirectory: true
         )
     }
 
+    private var hardcodedDesktopVAEDecoderURL: URL {
+        URL(fileURLWithPath: "/Users/a1111/Documents/VAEDecoder.mlmodelc")
+    }
+
+    private var hardcodedDesktopEmbeddingsURL: URL {
+        URL(fileURLWithPath: "/Users/a1111/Documents/zimage_embeddings.bin")
+    }
+
     private var hardcodedDesktopLoRAURL: URL {
-        URL(fileURLWithPath: "/Users/a1111/Downloads/z_image_lora.safetensors")
+        URL(
+            fileURLWithPath: "/Users/a1111/Documents/zimage_true_stage_fp32_7stage_lora_as_input_activation_space/Downloads/zit_ksenya_adafactor_lr1e04.safetensors"
+        )
     }
 
     private func hardcodedDesktopDefaultResourceURL(named resourceName: String) -> URL? {
         if resourceName.hasPrefix("ZImageTurbo_TransformerBackbone_stage") {
             return hardcodedDesktopTransformerBaseURL.appendingPathComponent(resourceName, isDirectory: true)
+        }
+        if resourceName == "VAEDecoder.mlmodelc" {
+            return hardcodedDesktopVAEDecoderURL
+        }
+        if resourceName == "zimage_embeddings.bin" {
+            return hardcodedDesktopEmbeddingsURL
         }
         if resourceName == "z_image_lora.safetensors" {
             return hardcodedDesktopLoRAURL
