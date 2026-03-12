@@ -56,6 +56,9 @@ public struct ZImageConfiguration {
     /// Optional LoRA adapter URL to apply to the DiT model
     public var loraURL: URL? = nil
 
+    /// Multiplier applied to LoRA deltas for models exported with LoRA-as-input
+    public var loraScale: Float = 1.0
+
     /// Optional injected initial latent tensor bytes (Float32, row-major)
     public var initialLatentData: Data? = nil
 
@@ -87,12 +90,14 @@ public struct ZImageConfiguration {
         embeddingsURL: URL,
         stepCount: Int = 4,
         seed: UInt32 = 0,
-        loraURL: URL? = nil
+        loraURL: URL? = nil,
+        loraScale: Float = 1.0
     ) {
         self.embeddingsURL = embeddingsURL
         self.stepCount = stepCount
         self.seed = seed
         self.loraURL = loraURL
+        self.loraScale = loraScale
     }
 }
 
@@ -245,6 +250,10 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
             throw Error.unexpectedEmbeddingsShape(actual: hiddenStates.shape, expected: expectedEmbeddingShape)
         }
 
+        let loraInputProvider = try config.loraURL.map {
+            try ZImageLoRAInputProvider(loraURL: $0, scale: config.loraScale)
+        }
+
         // Setup scheduler (single instance — one image)
         let scheduler: Scheduler = ZimageDiscreteFlowScheduler(
             stepCount: config.stepCount,
@@ -285,7 +294,8 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
                 let noise = try dit.predictNoise(
                     latents: [latent],
                     timeStep: t,
-                    hiddenStates: hiddenStates
+                    hiddenStates: hiddenStates,
+                    loraInputProvider: loraInputProvider
                 )
                 if config.debugEnabled {
                     logFiniteStats(

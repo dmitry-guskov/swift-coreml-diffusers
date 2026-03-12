@@ -8,15 +8,18 @@ struct ZImageBootstrapConfig {
     let transformerStageURLs: [URL]
     let vaeDecoderURL: URL
     let embeddingsURL: URL
+    let loraURL: URL?
 
     init(
         transformerStageURLs: [URL],
         vaeDecoderURL: URL,
-        embeddingsURL: URL
+        embeddingsURL: URL,
+        loraURL: URL? = nil
     ) {
         self.transformerStageURLs = transformerStageURLs
         self.vaeDecoderURL = vaeDecoderURL
         self.embeddingsURL = embeddingsURL
+        self.loraURL = loraURL
     }
 }
 
@@ -25,6 +28,7 @@ enum ZImagePipelineLoaderError: LocalizedError {
     case missingTransformerStage(index: Int, path: String)
     case missingVaeDecoder(path: String)
     case missingEmbeddings(path: String)
+    case missingLoRA(path: String)
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +38,8 @@ enum ZImagePipelineLoaderError: LocalizedError {
             return "Missing VAE decoder model at path: \(path)"
         case .missingEmbeddings(let path):
             return "Missing embeddings tensor file at path: \(path)"
+        case .missingLoRA(let path):
+            return "Missing LoRA safetensors file at path: \(path)"
         }
     }
 }
@@ -63,6 +69,12 @@ final class ZImagePipelineLoader {
         print("[PipelineLoader]   vaeDecoder = \(config.vaeDecoderURL.path)  (exists: \(vaeExists))")
         let embExists = fm.fileExists(atPath: config.embeddingsURL.path)
         print("[PipelineLoader]   embeddings = \(config.embeddingsURL.path)  (exists: \(embExists))")
+        if let loraURL = config.loraURL {
+            let loraExists = fm.fileExists(atPath: loraURL.path)
+            print("[PipelineLoader]   lora = \(loraURL.path)  (exists: \(loraExists))")
+        } else {
+            print("[PipelineLoader]   lora = <none>")
+        }
         print("[PipelineLoader] ===== End resource manifest =====")
     }
 
@@ -79,10 +91,14 @@ final class ZImagePipelineLoader {
         guard FileManager.default.fileExists(atPath: config.embeddingsURL.path) else {
             throw ZImagePipelineLoaderError.missingEmbeddings(path: config.embeddingsURL.path)
         }
+        if let loraURL = config.loraURL,
+           !FileManager.default.fileExists(atPath: loraURL.path) {
+            throw ZImagePipelineLoaderError.missingLoRA(path: loraURL.path)
+        }
     }
 
     private func withResourceAccess<T>(_ body: () throws -> T) throws -> T {
-        let urls = config.transformerStageURLs + [config.vaeDecoderURL, config.embeddingsURL]
+        let urls = config.transformerStageURLs + [config.vaeDecoderURL, config.embeddingsURL] + (config.loraURL.map { [$0] } ?? [])
         let accessFlags = urls.map { $0.startAccessingSecurityScopedResource() }
         defer {
             for (index, granted) in accessFlags.enumerated().reversed() where granted {
@@ -150,7 +166,8 @@ final class ZImagePipelineLoader {
             pipeline: pipeline,
             transformerStageURLs: config.transformerStageURLs,
             vaeDecoderURL: config.vaeDecoderURL,
-            embeddingsURL: config.embeddingsURL
+            embeddingsURL: config.embeddingsURL,
+            loraURL: config.loraURL
         )
         print("[PipelineLoader] loadAppPipeline.complete")
         return appPipeline
@@ -182,7 +199,8 @@ final class ZImagePipelineLoader {
             let generationConfig = ZImageConfiguration(
                 embeddingsURL: config.embeddingsURL,
                 stepCount: stepCount,
-                seed: seed
+                seed: seed,
+                loraURL: config.loraURL
             )
             
             print("[SmokeTest] beforeGenerate")

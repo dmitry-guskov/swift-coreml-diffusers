@@ -870,6 +870,7 @@ struct GenerationView: View {
         case transformer
         case vae
         case embeddings
+        case lora
         case initialLatent
     }
 
@@ -987,7 +988,8 @@ struct GenerationView: View {
                 let bootstrap = ZImageBootstrapConfig(
                     transformerStageURLs: stageURLs,
                     vaeDecoderURL: vaeURL,
-                    embeddingsURL: embeddingsURL
+                    embeddingsURL: embeddingsURL,
+                    loraURL: generation.effectiveLoRAURL
                 )
                 let loader = ZImagePipelineLoader(config: bootstrap, computeUnits: generation.computeUnits)
                 let pipeline = try loader.loadAppPipeline(runSmokeTest: false, smokeSteps: 4, smokeSeed: 42)
@@ -1003,9 +1005,11 @@ struct GenerationView: View {
                     Transformer path: \(generation.transformerModelURL.path)
                     VAE path: \(generation.vaeDecoderModelURL.path)
                     Embeddings path: \(generation.effectiveEmbeddingsURL.path)
+                    LoRA path: \(generation.effectiveLoRAURL?.path ?? "<none>")
                     Transformer detail: \(generation.transformerPathResolutionDetail)
                     VAE detail: \(generation.vaePathResolutionDetail)
                     Embeddings detail: \(generation.embeddingsPathResolutionDetail)
+                    LoRA detail: \(generation.loraPathResolutionDetail)
                     """
                     isPreparingModels = false
                     modelPreparationStatus = "Model preparation failed."
@@ -1111,6 +1115,29 @@ struct GenerationView: View {
         }
     }
 
+    private func selectLoRAFile(from url: URL) {
+        let accessed = url.startAccessingSecurityScopedResource()
+        modelPreparationStatus = "Importing LoRA…"
+        Task {
+            defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let folder = Settings.shared.importedResourcesURL()
+                let copied = try await Task.detached(priority: .userInitiated) {
+                    try importExternalResource(pickerURL: url, into: folder)
+                }.value
+                await MainActor.run {
+                    generation.setExternalLoRAPath(copied.path)
+                    modelPreparationStatus = "LoRA imported. Tap Reload Models."
+                }
+            } catch {
+                await MainActor.run {
+                    checkpointError = "Failed to import LoRA: \(error.localizedDescription)"
+                    modelPreparationStatus = "Import failed."
+                }
+            }
+        }
+    }
+
     private func selectInitialLatentFile(from url: URL) {
         let accessed = url.startAccessingSecurityScopedResource()
         Task {
@@ -1136,6 +1163,16 @@ struct GenerationView: View {
             return "Using embeddings file: \(URL(fileURLWithPath: path).lastPathComponent)"
         }
         return "No embeddings file selected."
+    }
+
+    private var loraStatusText: String {
+        if let path = generation.externalLoRAPath, !path.isEmpty {
+            return "Using LoRA file: \(URL(fileURLWithPath: path).lastPathComponent)"
+        }
+        if let fallback = generation.effectiveLoRAURL {
+            return "Using default LoRA file: \(fallback.lastPathComponent)"
+        }
+        return "No LoRA file selected."
     }
 
     private var initialLatentStatusText: String {
@@ -1171,6 +1208,19 @@ struct GenerationView: View {
                             }
                             .buttonStyle(.bordered)
                         }
+                        HStack {
+                            Button("Select LoRA") {
+                                activeFilePicker = .lora
+                            }
+                            .buttonStyle(.bordered)
+                            if generation.externalLoRAPath != nil {
+                                Button("Clear LoRA") {
+                                    generation.setExternalLoRAPath(nil)
+                                    modelPreparationStatus = "LoRA cleared. Tap Reload Models."
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
                         Button("Reload Models") {
                             reloadCheckpoint()
                         }
@@ -1179,6 +1229,9 @@ struct GenerationView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Text("VAE: \(generation.vaeDecoderPath.flatMap { URL(fileURLWithPath: $0).lastPathComponent } ?? "Default path (\(generation.vaeDecoderModelURL.lastPathComponent))")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(loraStatusText)
                             .font(.caption)
                             .foregroundColor(.secondary)
                         if isPreparingModels {
@@ -1204,6 +1257,7 @@ struct GenerationView: View {
                                 .font(.caption2).foregroundColor(.secondary)
                             Group {
                                 Text("• zimage_embeddings.bin")
+                                Text("• z_image_lora.safetensors (optional)")
                                 Text("• ZImageTurbo_TransformerBackbone.mlmodelc")
                                 Text("• VAEDecoder.mlmodelc")
                             }
@@ -1454,6 +1508,8 @@ struct GenerationView: View {
                     selectVaeDecoderModel(from: first)
                 case .embeddings:
                     selectEmbeddingsFile(from: first)
+                case .lora:
+                    selectLoRAFile(from: first)
                 case .initialLatent:
                     selectInitialLatentFile(from: first)
                 case .none:
@@ -1467,6 +1523,8 @@ struct GenerationView: View {
                     checkpointError = "VAE selection failed: \(error.localizedDescription)"
                 case .embeddings:
                     checkpointError = "Embeddings file selection failed: \(error.localizedDescription)"
+                case .lora:
+                    checkpointError = "LoRA file selection failed: \(error.localizedDescription)"
                 case .initialLatent:
                     checkpointError = "Init latent selection failed: \(error.localizedDescription)"
                 case .none:

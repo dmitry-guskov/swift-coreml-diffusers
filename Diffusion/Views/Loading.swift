@@ -52,7 +52,8 @@ struct LoadingView: View {
                         let bootstrap = ZImageBootstrapConfig(
                             transformerStageURLs: generation.transformerStageURLs,
                             vaeDecoderURL: generation.vaeDecoderModelURL,
-                            embeddingsURL: generation.effectiveEmbeddingsURL
+                            embeddingsURL: generation.effectiveEmbeddingsURL,
+                            loraURL: generation.effectiveLoRAURL
                         )
                         let loader = ZImagePipelineLoader(config: bootstrap, computeUnits: generation.computeUnits)
                         generation.pipeline = try loader.loadAppPipeline(runSmokeTest: false, smokeSteps: 4, smokeSeed: 42)
