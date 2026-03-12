@@ -44,7 +44,7 @@ enum ZImagePipelineLoaderError: LocalizedError {
     }
 }
 
-@available(iOS 17.0, macOS 14.0, *)
+@available(iOS 18.0, macOS 14.0, *)
 final class ZImagePipelineLoader {
     private let config: ZImageBootstrapConfig
     private let computeUnits: ComputeUnits

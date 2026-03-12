@@ -58,7 +58,7 @@ final class ZImageCheckpointStore: ObservableObject {
         persist()
     }
 
-    @available(iOS 17.0, macOS 14.0, *)
+    @available(iOS 18.0, macOS 14.0, *)
     func loadSelectedAppPipeline(
         computeUnits: ComputeUnits,
         embeddingsOverrideURL: URL? = nil,

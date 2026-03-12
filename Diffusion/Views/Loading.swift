@@ -48,7 +48,7 @@ struct LoadingView: View {
                     preparationPhase = "Loading models"
                     preparationDetail = "Initializing Transformer and VAE resources"
 
-                    if #available(iOS 17.0, macOS 14.0, *) {
+                    if #available(iOS 18.0, macOS 14.0, *) {
                         let bootstrap = ZImageBootstrapConfig(
                             transformerStageURLs: generation.transformerStageURLs,
                             vaeDecoderURL: generation.vaeDecoderModelURL,

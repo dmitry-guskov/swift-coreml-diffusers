@@ -979,8 +979,8 @@ struct GenerationView: View {
                 checkpointError = nil
             }
             do {
-                guard #available(iOS 17.0, macOS 14.0, *) else {
-                    throw "ZImage checkpoint switching requires iOS 17 / macOS 14."
+                guard #available(iOS 18.0, macOS 14.0, *) else {
+                    throw "ZImage checkpoint switching requires iOS 18 / macOS 14."
                 }
                 let stageURLs = generation.transformerStageURLs
                 let vaeURL = generation.vaeDecoderModelURL
