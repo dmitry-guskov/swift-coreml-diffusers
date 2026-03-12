@@ -789,6 +789,27 @@ class GenerationContext: ObservableObject {
         return resourceURL.appending(path: resourceName)
     }
 
+    private var hardcodedDesktopTransformerBaseURL: URL {
+        URL(
+            fileURLWithPath: "/Users/a1111/Downloads/zimage_true_stage_fp32_7stage_lora_as_input_activation_space/",
+            isDirectory: true
+        )
+    }
+
+    private var hardcodedDesktopLoRAURL: URL {
+        URL(fileURLWithPath: "/Users/a1111/Downloads/z_image_lora.safetensors")
+    }
+
+    private func hardcodedDesktopDefaultResourceURL(named resourceName: String) -> URL? {
+        if resourceName.hasPrefix("ZImageTurbo_TransformerBackbone_stage") {
+            return hardcodedDesktopTransformerBaseURL.appendingPathComponent(resourceName, isDirectory: true)
+        }
+        if resourceName == "z_image_lora.safetensors" {
+            return hardcodedDesktopLoRAURL
+        }
+        return nil
+    }
+
     private var hardcodedIOSDefaultCheckpointBaseURL: URL {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents", isDirectory: true)
@@ -816,6 +837,9 @@ class GenerationContext: ObservableObject {
         // shows the user a clear, recognisable location.
         return rootURL
         #else
+        if let hardcodedURL = hardcodedDesktopDefaultResourceURL(named: resourceName) {
+            return hardcodedURL
+        }
         return bundledResourceURL(named: resourceName)
         #endif
     }
