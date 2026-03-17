@@ -156,7 +156,7 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         }
     }
 
-    private let expectedLatentShape = [1, 16, 64, 64]
+    private let expectedLatentShape = [1, 16, 160, 96]
     private let expectedEmbeddingShape = [1, 500, 2560]
     private var expectedEmbeddingFloatCount: Int { expectedEmbeddingShape[0] * expectedEmbeddingShape[1] * expectedEmbeddingShape[2] }
     private var expectedEmbeddingByteCount: Int { expectedEmbeddingFloatCount * MemoryLayout<Float32>.size }

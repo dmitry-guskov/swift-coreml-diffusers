@@ -12,6 +12,7 @@ final class ZImageAppPipeline: AppPipeline {
     private let transformerStageURLs: [URL]
     private let vaeDecoderURL: URL
     private let embeddingsURL: URL
+    private let loraURL: URL?
     private var canceled = false
     private let fileManager = FileManager.default
     private var memoryWarningObserver: NSObjectProtocol?
@@ -22,12 +23,14 @@ final class ZImageAppPipeline: AppPipeline {
         pipeline: StableDiffusion.ZImagePipeline,
         transformerStageURLs: [URL],
         vaeDecoderURL: URL,
-        embeddingsURL: URL
+        embeddingsURL: URL,
+        loraURL: URL? = nil
     ) {
         self.pipeline = pipeline
         self.transformerStageURLs = transformerStageURLs
         self.vaeDecoderURL = vaeDecoderURL
         self.embeddingsURL = embeddingsURL
+        self.loraURL = loraURL
         
         setupMemoryWarningObserver()
     }
@@ -80,7 +83,8 @@ final class ZImageAppPipeline: AppPipeline {
         var config = StableDiffusion.ZImageConfiguration(
             embeddingsURL: embeddingsURL,
             stepCount: stepCount,
-            seed: seed
+            seed: seed,
+            loraURL: loraURL
         )
         config.initialLatentData = initialNoiseData
         config.initialLatentShape = initialNoiseShape
@@ -94,7 +98,7 @@ final class ZImageAppPipeline: AppPipeline {
         config.debugSkipVaeDecode = false
         // print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
 
-        let resourceURLs = transformerStageURLs + [vaeDecoderURL, embeddingsURL]
+        let resourceURLs = transformerStageURLs + [vaeDecoderURL, embeddingsURL] + (loraURL.map { [$0] } ?? [])
         let accessFlags = resourceURLs.map { $0.startAccessingSecurityScopedResource() }
         defer {
             for (url, granted) in zip(resourceURLs, accessFlags) where granted {

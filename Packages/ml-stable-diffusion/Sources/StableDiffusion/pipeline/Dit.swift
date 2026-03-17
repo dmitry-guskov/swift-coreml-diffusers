@@ -30,11 +30,11 @@ public struct DitDebugContext {
 ///   - stage 0:  inputs `latents`, `timestep`, `cap_feats`  →  output `hidden_tokens`
 ///   - stage 1‒4: inputs `hidden_tokens`, `timestep`, `cap_feats`  →  output `hidden_tokens`
 ///   - stage 5:  inputs `hidden_tokens`, `timestep`, `cap_feats`  →  output final noise tensor
-@available(iOS 17.0, macOS 14.0, *)
+@available(iOS 18.0, macOS 14.0, *)
 public struct Dit: ResourceManaging {
 
     public enum Error: Swift.Error, LocalizedError {
-        case invalidStageInputs(stageIndex: Int, expected: Set<String>, actual: [String])
+        case invalidStageInputs(stageIndex: Int, expectedVariants: [[String]], actual: [String])
         case invalidOutputContract(stageIndex: Int, outputKeys: [String])
         case missingOutputFeature(stageIndex: Int)
         case incompatibleHiddenTokens(stageIndex: Int, expected: [Int], actual: [Int])
@@ -42,8 +42,8 @@ public struct Dit: ResourceManaging {
 
         public var errorDescription: String? {
             switch self {
-            case .invalidStageInputs(let idx, let expected, let actual):
-                return "Stage \(idx) input contract mismatch. Expected \(expected.sorted()), got \(actual)."
+            case .invalidStageInputs(let idx, let expectedVariants, let actual):
+                return "Stage \(idx) input contract mismatch. Expected one of \(expectedVariants), got \(actual)."
             case .invalidOutputContract(let idx, let outputKeys):
                 return "Stage \(idx) must expose exactly one output tensor; got \(outputKeys)."
             case .missingOutputFeature(let idx):
@@ -56,6 +56,7 @@ public struct Dit: ResourceManaging {
         }
     }
 
+    private static let loraInputs: Set<String> = ["lora_vec", "lora_scale"]
     private static let stage0Inputs: Set<String> = ["latents", "timestep", "cap_feats"]
     private static let stageNInputs: Set<String> = ["hidden_tokens", "timestep", "cap_feats"]
 
@@ -118,15 +119,22 @@ public struct Dit: ResourceManaging {
 
     // MARK: - Validation
 
-    private func expectedInputKeys(for stageIndex: Int) -> Set<String> {
-        stageIndex == 0 ? Self.stage0Inputs : Self.stageNInputs
+    private func expectedInputKeyVariants(for stageIndex: Int) -> [Set<String>] {
+        let base = stageIndex == 0 ? Self.stage0Inputs : Self.stageNInputs
+        return [base, base.union(Self.loraInputs)]
+    }
+
+    private func modelExpectsLoRAInputs(_ model: MLModel) -> Bool {
+        let actual = Set(model.modelDescription.inputDescriptionsByName.keys)
+        return Self.loraInputs.isSubset(of: actual)
     }
 
     private func validateStageInputContract(for model: MLModel, stageIndex: Int) throws {
-        let expected = expectedInputKeys(for: stageIndex)
+        let expectedVariants = expectedInputKeyVariants(for: stageIndex)
         let actual = Set(model.modelDescription.inputDescriptionsByName.keys)
-        guard actual == expected else {
-            throw Error.invalidStageInputs(stageIndex: stageIndex, expected: expected, actual: actual.sorted())
+        guard expectedVariants.contains(actual) else {
+            let rendered = expectedVariants.map { Array($0).sorted() }
+            throw Error.invalidStageInputs(stageIndex: stageIndex, expectedVariants: rendered, actual: actual.sorted())
         }
     }
 
@@ -182,6 +190,7 @@ public struct Dit: ResourceManaging {
         latents: [MLShapedArray<Float32>],
         timeStep: Int,
         hiddenStates: MLShapedArray<Float32>,
+        loraInputProvider: ZImageLoRAInputProvider? = nil,
         debugContext: DitDebugContext? = nil
     ) throws -> [MLShapedArray<Float32>] {
         let tNormalized = Float32(1000 - timeStep) / 1000.0
@@ -197,7 +206,7 @@ public struct Dit: ResourceManaging {
         }
         let batch = MLArrayBatchProvider(array: inputs)
         print("[Dit] predictNoise: timeStep=\(timeStep) latent_shape=\(latents.first?.shape ?? []) cap_feats_shape=\(hiddenStates.shape) batch_count=\(batch.count)")
-        let results = try predictions(from: batch, debugContext: debugContext)
+        let results = try predictions(from: batch, loraInputProvider: loraInputProvider, debugContext: debugContext)
         var noise: [MLShapedArray<Float32>] = []
         noise.reserveCapacity(results.count)
         for i in 0..<results.count {
@@ -223,22 +232,44 @@ public struct Dit: ResourceManaging {
     /// Its single output tensor is mapped to `hidden_tokens` and merged with
     /// `timestep` and `cap_feats` from the original batch for stages 1‒5.
     /// Each stage is unloaded immediately after use when running multi-stage.
-    func predictions(from batch: MLBatchProvider, debugContext: DitDebugContext? = nil) throws -> MLBatchProvider {
+    func predictions(
+        from batch: MLBatchProvider,
+        loraInputProvider: ZImageLoRAInputProvider? = nil,
+        debugContext: DitDebugContext? = nil
+    ) throws -> MLBatchProvider {
         let shouldUnload = unloadStagesAfterUse
 
         let originalInputs = batch.arrayOfFeatureValueDictionaries
         var accumulated: [[String: MLFeatureValue]] = originalInputs
         var lastResults: MLBatchProvider!
+        var zeroLoRAInputProvider: ZImageLoRAInputProvider?
 
         for (stageIndex, stage) in models.enumerated() {
             do {
                 lastResults = try autoreleasepool {
-                    let inputBatch = MLArrayBatchProvider(array: try accumulated.map {
-                        try MLDictionaryFeatureProvider(dictionary: $0)
-                    })
                     let r = try stage.perform { model in
                         try validateStageInputContract(for: model, stageIndex: stageIndex)
                         try validateSingleOutput(for: model, stageIndex: stageIndex)
+
+                        let inputBatch = MLArrayBatchProvider(array: try accumulated.map { entry in
+                            var prepared = entry
+                            if modelExpectsLoRAInputs(model) {
+                                let provider: ZImageLoRAInputProvider
+                                if let loraInputProvider {
+                                    provider = loraInputProvider
+                                } else if let zeroLoRAInputProvider {
+                                    provider = zeroLoRAInputProvider
+                                } else {
+                                    let created = try ZImageLoRAInputProvider(loraURL: nil, scale: 0)
+                                    zeroLoRAInputProvider = created
+                                    provider = created
+                                }
+                                let features = try provider.featureValues(for: stageIndex)
+                                prepared["lora_vec"] = features.vector
+                                prepared["lora_scale"] = features.scale
+                            }
+                            return try MLDictionaryFeatureProvider(dictionary: prepared)
+                        })
 
                         if stageIndex > 0, let htDesc = model.modelDescription.inputDescriptionsByName["hidden_tokens"] {
                             for entry in accumulated {

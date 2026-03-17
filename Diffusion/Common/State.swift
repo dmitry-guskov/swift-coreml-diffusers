@@ -552,7 +552,7 @@ class GenerationContext: ObservableObject {
     var loraPathResolutionDetail: String {
         if externalLoRAPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
             let fallback = defaultResourceURL(named: "z_image_lora.safetensors")
-            return "LoRA: no external path configured; using default resource (\(fallback?.path ?? "<none>"))."
+            return "LoRA: no external path configured; using default resource (\(fallback.path))."
         }
         return resolveOptionalPathWithDetail(
             path: externalLoRAPath,
