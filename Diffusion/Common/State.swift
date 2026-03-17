@@ -147,6 +147,7 @@ class GenerationContext: ObservableObject {
     @Published var transformerModelPath: String? = Settings.shared.transformerModelPath
     @Published var vaeDecoderPath: String? = Settings.shared.vaeDecoderPath
     @Published var externalEmbeddingsPath: String? = Settings.shared.externalEmbeddingsPath
+    @Published var externalLoRAPath: String? = Settings.shared.externalLoRAPath
     @Published var initialLatentPath: String? = Settings.shared.initialLatentPath
     @Published var generationProgressSnapshot: GenerationProgressSnapshot = .idle
 
@@ -193,6 +194,11 @@ class GenerationContext: ObservableObject {
             externalEmbeddingsPath = nil
             Settings.shared.externalEmbeddingsPath = nil
             Settings.shared.externalEmbeddingsBookmark = nil
+        }
+        clearIfMissing(path: externalLoRAPath) {
+            externalLoRAPath = nil
+            Settings.shared.externalLoRAPath = nil
+            Settings.shared.externalLoRABookmark = nil
         }
         clearIfMissing(path: initialLatentPath) {
             initialLatentPath = nil
@@ -495,6 +501,20 @@ class GenerationContext: ObservableObject {
         externalEmbeddingsFileURL ?? defaultResourceURL(named: "zimage_embeddings.bin")
     }
 
+    var externalLoRAFileURL: URL? {
+        resolveOptionalPathWithDetail(
+            path: externalLoRAPath,
+            bookmarkData: Settings.shared.externalLoRABookmark,
+            refreshBookmark: { Settings.shared.externalLoRABookmark = $0 },
+            resourceLabel: "LoRA"
+        ).url
+    }
+
+    var effectiveLoRAURL: URL? {
+        if let external = externalLoRAFileURL { return external }
+        let fallback = defaultResourceURL(named: "z_image_lora.safetensors")
+        return FileManager.default.fileExists(atPath: fallback.path) ? fallback : nil
+    }
 
     var transformerPathResolutionDetail: String {
         resolvePathWithDetail(
@@ -526,6 +546,19 @@ class GenerationContext: ObservableObject {
             bookmarkData: Settings.shared.externalEmbeddingsBookmark,
             refreshBookmark: { Settings.shared.externalEmbeddingsBookmark = $0 },
             resourceLabel: "Embeddings"
+        ).detail
+    }
+
+    var loraPathResolutionDetail: String {
+        if externalLoRAPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+            let fallback = defaultResourceURL(named: "z_image_lora.safetensors")
+            return "LoRA: no external path configured; using default resource (\(fallback?.path ?? "<none>"))."
+        }
+        return resolveOptionalPathWithDetail(
+            path: externalLoRAPath,
+            bookmarkData: Settings.shared.externalLoRABookmark,
+            refreshBookmark: { Settings.shared.externalLoRABookmark = $0 },
+            resourceLabel: "LoRA"
         ).detail
     }
 
@@ -590,6 +623,21 @@ class GenerationContext: ObservableObject {
         externalEmbeddingsPath = finalValue
         Settings.shared.externalEmbeddingsPath = finalValue
         Settings.shared.externalEmbeddingsBookmark = nil
+    }
+
+    func setExternalLoRAURL(_ url: URL?) {
+        let normalized = url?.path.trimmingCharacters(in: .whitespacesAndNewlines)
+        externalLoRAPath = (normalized?.isEmpty ?? true) ? nil : normalized
+        Settings.shared.externalLoRAPath = externalLoRAPath
+        Settings.shared.externalLoRABookmark = makeBookmark(for: url)
+    }
+
+    func setExternalLoRAPath(_ path: String?) {
+        let normalized = path?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalValue = (normalized?.isEmpty ?? true) ? nil : normalized
+        externalLoRAPath = finalValue
+        Settings.shared.externalLoRAPath = finalValue
+        Settings.shared.externalLoRABookmark = nil
     }
 
     func setInitialLatentURL(_ url: URL?) {
@@ -801,6 +849,8 @@ class Settings {
         case vaeDecoderBookmark
         case externalEmbeddingsPath
         case externalEmbeddingsBookmark
+        case externalLoRAPath
+        case externalLoRABookmark
         case initialLatentPath
         case initialLatentBookmark
     }
@@ -961,6 +1011,32 @@ class Settings {
         }
         get {
             defaults.data(forKey: Keys.externalEmbeddingsBookmark.rawValue)
+        }
+    }
+
+    var externalLoRAPath: String? {
+        set {
+            if let value = newValue, !value.isEmpty {
+                defaults.set(value, forKey: Keys.externalLoRAPath.rawValue)
+            } else {
+                defaults.removeObject(forKey: Keys.externalLoRAPath.rawValue)
+            }
+        }
+        get {
+            defaults.string(forKey: Keys.externalLoRAPath.rawValue)
+        }
+    }
+
+    var externalLoRABookmark: Data? {
+        set {
+            if let newValue {
+                defaults.set(newValue, forKey: Keys.externalLoRABookmark.rawValue)
+            } else {
+                defaults.removeObject(forKey: Keys.externalLoRABookmark.rawValue)
+            }
+        }
+        get {
+            defaults.data(forKey: Keys.externalLoRABookmark.rawValue)
         }
     }
 

@@ -8,15 +8,18 @@ struct ZImageBootstrapConfig {
     let transformerStageURLs: [URL]
     let vaeDecoderURL: URL
     let embeddingsURL: URL
+    let loraURL: URL?
 
     init(
         transformerStageURLs: [URL],
         vaeDecoderURL: URL,
-        embeddingsURL: URL
+        embeddingsURL: URL,
+        loraURL: URL? = nil
     ) {
         self.transformerStageURLs = transformerStageURLs
         self.vaeDecoderURL = vaeDecoderURL
         self.embeddingsURL = embeddingsURL
+        self.loraURL = loraURL
     }
 }
 
@@ -25,6 +28,8 @@ enum ZImagePipelineLoaderError: LocalizedError {
     case missingTransformerStage(index: Int, path: String)
     case missingVaeDecoder(path: String)
     case missingEmbeddings(path: String)
+    case missingLoRA(path: String)
+    case invalidLoRAWiring(stageIndex: Int, path: String)
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +39,13 @@ enum ZImagePipelineLoaderError: LocalizedError {
             return "Missing VAE decoder model at path: \(path)"
         case .missingEmbeddings(let path):
             return "Missing embeddings tensor file at path: \(path)"
+        case .missingLoRA(let path):
+            return "Missing LoRA safetensors file at path: \(path)"
+        case .invalidLoRAWiring(let stageIndex, let path):
+            return """
+            Transformer stage \(stageIndex) declares LoRA inputs but the compiled model does not use them: \(path). \
+            Re-export the Z-Image chunks so lora_vec and lora_scale are wired into the graph.
+            """
         }
     }
 }
@@ -63,6 +75,13 @@ final class ZImagePipelineLoader {
         print("[PipelineLoader]   vaeDecoder = \(config.vaeDecoderURL.path)  (exists: \(vaeExists))")
         let embExists = fm.fileExists(atPath: config.embeddingsURL.path)
         print("[PipelineLoader]   embeddings = \(config.embeddingsURL.path)  (exists: \(embExists))")
+        print("[PipelineLoader]   loraSelected = \(config.loraURL != nil)")
+        if let loraURL = config.loraURL {
+            let loraExists = fm.fileExists(atPath: loraURL.path)
+            print("[PipelineLoader]   loraPath = \(loraURL.path)  (exists: \(loraExists))")
+        } else {
+            print("[PipelineLoader]   loraPath = <none>")
+        }
         print("[PipelineLoader] ===== End resource manifest =====")
     }
 
@@ -79,10 +98,51 @@ final class ZImagePipelineLoader {
         guard FileManager.default.fileExists(atPath: config.embeddingsURL.path) else {
             throw ZImagePipelineLoaderError.missingEmbeddings(path: config.embeddingsURL.path)
         }
+        if let loraURL = config.loraURL,
+           !FileManager.default.fileExists(atPath: loraURL.path) {
+            throw ZImagePipelineLoaderError.missingLoRA(path: loraURL.path)
+        }
+        try validateLoRAWiringIfNeeded()
+    }
+
+    private func validateLoRAWiringIfNeeded() throws {
+        guard config.loraURL != nil else { return }
+
+        for (stageIndex, stageURL) in config.transformerStageURLs.enumerated() where stageIndex > 0 {
+            let milURL = stageURL.appendingPathComponent("model.mil", isDirectory: false)
+            guard let mil = try? String(contentsOf: milURL, encoding: .utf8) else {
+                continue
+            }
+
+            let usesVector = milUsesLoRAInput(named: "lora_vec", temporaryName: "lora_vec_tmp", in: mil)
+            let usesScale = milUsesLoRAInput(named: "lora_scale", temporaryName: "lora_scale_tmp", in: mil)
+
+            if !usesVector || !usesScale {
+                print("[PipelineLoader] LoRA wiring check failed for stage[\(stageIndex)] at \(stageURL.path)")
+                throw ZImagePipelineLoaderError.invalidLoRAWiring(stageIndex: stageIndex, path: stageURL.path)
+            }
+        }
+    }
+
+    private func milUsesLoRAInput(named name: String, temporaryName: String, in mil: String) -> Bool {
+        for rawLine in mil.split(whereSeparator: \.isNewline) {
+            let line = String(rawLine)
+            guard line.contains(name) || line.contains(temporaryName) else {
+                continue
+            }
+            if line.contains("func main<") {
+                continue
+            }
+            if line.contains("identity(x = \(name))") || line.contains("identity(x = \(temporaryName))") {
+                continue
+            }
+            return true
+        }
+        return false
     }
 
     private func withResourceAccess<T>(_ body: () throws -> T) throws -> T {
-        let urls = config.transformerStageURLs + [config.vaeDecoderURL, config.embeddingsURL]
+        let urls = config.transformerStageURLs + [config.vaeDecoderURL, config.embeddingsURL] + (config.loraURL.map { [$0] } ?? [])
         let accessFlags = urls.map { $0.startAccessingSecurityScopedResource() }
         defer {
             for (index, granted) in accessFlags.enumerated().reversed() where granted {
@@ -150,7 +210,8 @@ final class ZImagePipelineLoader {
             pipeline: pipeline,
             transformerStageURLs: config.transformerStageURLs,
             vaeDecoderURL: config.vaeDecoderURL,
-            embeddingsURL: config.embeddingsURL
+            embeddingsURL: config.embeddingsURL,
+            loraURL: config.loraURL
         )
         print("[PipelineLoader] loadAppPipeline.complete")
         return appPipeline
@@ -163,7 +224,6 @@ final class ZImagePipelineLoader {
             try validateResources()
             try logModelContract()
             print("[ZImageSmoke] embeddings_path=\(config.embeddingsURL.path)")
-            print("[ZImageSmoke] expected_latents_shape=[1,16,64,64] expected_cap_feats_shape=[1,500,2560]")
 
             print("[SmokeTest] beforePipelineCreate")
             var pipeline = try loadUnchecked()
@@ -182,7 +242,8 @@ final class ZImagePipelineLoader {
             let generationConfig = ZImageConfiguration(
                 embeddingsURL: config.embeddingsURL,
                 stepCount: stepCount,
-                seed: seed
+                seed: seed,
+                loraURL: config.loraURL
             )
             
             print("[SmokeTest] beforeGenerate")

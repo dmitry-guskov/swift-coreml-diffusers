@@ -10,6 +10,7 @@ private enum MacPathPickerTarget: Equatable {
     case transformer
     case vae
     case embeddings
+    case lora
     case initialLatent
 }
 
@@ -31,6 +32,7 @@ private struct BootstrapContextError: LocalizedError {
     let transformerPath: String
     let vaePath: String
     let embeddingsPath: String
+    let loraPath: String
     let resolutionDetails: [String]
     let underlyingError: Error
 
@@ -41,6 +43,7 @@ private struct BootstrapContextError: LocalizedError {
         Transformer: \(transformerPath)
         VAE: \(vaePath)
         Embeddings: \(embeddingsPath)
+        LoRA: \(loraPath)
         \(detailsBlock)
         Underlying error: \(underlyingError)
         """
@@ -158,6 +161,29 @@ struct ControlsView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
+                    Button("Select LoRA Path") {
+                        pendingPathPicker = .lora
+                        activePathPicker = .lora
+                    }
+                    .buttonStyle(.bordered)
+                    if generation.externalLoRAPath != nil {
+                        Button("Clear LoRA Path") {
+                            generation.setExternalLoRAURL(nil)
+                            Task { await bootstrapPipeline() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                Text(loraStatusText())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Expected format: .safetensors LoRA file (optional).")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
                     Button("Select Init Latent Path") {
                         pendingPathPicker = .initialLatent
                         activePathPicker = .initialLatent
@@ -242,7 +268,7 @@ struct ControlsView: View {
                 switch pendingPathPicker ?? activePathPicker {
                 case .transformer, .vae:
                     return [.item]
-                case .embeddings, .initialLatent:
+                case .embeddings, .initialLatent, .lora:
                     return [.data]
                 case .none:
                     return [.item]
@@ -270,6 +296,11 @@ struct ControlsView: View {
                         generation.setExternalEmbeddingsURL(first)
                         await bootstrapPipeline()
                     }
+                case .lora:
+                    Task { @MainActor in
+                        generation.setExternalLoRAURL(first)
+                        await bootstrapPipeline()
+                    }
                 case .initialLatent:
                     Task { @MainActor in
                         generation.setInitialLatentURL(first)
@@ -293,7 +324,8 @@ struct ControlsView: View {
             let bootstrap = ZImageBootstrapConfig(
                 transformerStageURLs: stageURLs,
                 vaeDecoderURL: vaeURL,
-                embeddingsURL: embeddingsURL
+                embeddingsURL: embeddingsURL,
+                loraURL: generation.effectiveLoRAURL
             )
             let loader = ZImagePipelineLoader(config: bootstrap, computeUnits: generation.computeUnits)
             generation.pipeline = try loader.loadAppPipeline(runSmokeTest: false, smokeSteps: 4, smokeSeed: 42)
@@ -305,10 +337,12 @@ struct ControlsView: View {
                     transformerPath: generation.transformerModelURL.path,
                     vaePath: generation.vaeDecoderModelURL.path,
                     embeddingsPath: generation.effectiveEmbeddingsURL.path,
+                    loraPath: generation.effectiveLoRAURL?.path ?? "<none>",
                     resolutionDetails: [
                         "Transformer detail: \(generation.transformerPathResolutionDetail)",
                         "VAE detail: \(generation.vaePathResolutionDetail)",
-                        "Embeddings detail: \(generation.embeddingsPathResolutionDetail)"
+                        "Embeddings detail: \(generation.embeddingsPathResolutionDetail)",
+                        "LoRA detail: \(generation.loraPathResolutionDetail)"
                     ],
                     underlyingError: error
                 )
@@ -349,6 +383,8 @@ struct ControlsView: View {
             }
         case .embeddings:
             return
+        case .lora:
+            return
         case .initialLatent:
             return
         }
@@ -376,6 +412,16 @@ struct ControlsView: View {
             return "Using external embeddings: \(URL(fileURLWithPath: path).lastPathComponent)"
         }
         return "Using bundled embeddings file."
+    }
+
+    private func loraStatusText() -> String {
+        if let path = generation.externalLoRAPath, !path.isEmpty {
+            return "Using external LoRA: \(URL(fileURLWithPath: path).lastPathComponent)"
+        }
+        if let fallback = generation.effectiveLoRAURL {
+            return "Using default LoRA file: \(fallback.lastPathComponent)"
+        }
+        return "No LoRA file selected."
     }
 
     private func initialLatentStatusText() -> String {
