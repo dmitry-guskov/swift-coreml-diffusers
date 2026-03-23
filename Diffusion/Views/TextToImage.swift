@@ -1279,10 +1279,10 @@ struct GenerationView: View {
                         Text("CFG: \(String(format: "%.2f", generation.guidanceScale))")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("Output: 512 x 512 (fixed)")
+                        Text("Output: \(ZImagePipeline.expectedLatentShape[3] * ZImagePipeline.vaeScaleFactor) x \(ZImagePipeline.expectedLatentShape[2] * ZImagePipeline.vaeScaleFactor)")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("Latents: channels=16, size=64 x 64 (fixed)")
+                        Text("Latents: channels=\(ZImagePipeline.expectedLatentShape[1]), size=\(ZImagePipeline.expectedLatentShape[3]) x \(ZImagePipeline.expectedLatentShape[2])")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Text("Steps: \(stepCountValue) | Seed: \(generation.seed)")
@@ -1362,9 +1362,6 @@ struct GenerationView: View {
                             }
                         }
                         Text(initialLatentStatusText)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text("Expected format: raw Float32 .bin, shape [1,16,64,64].")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

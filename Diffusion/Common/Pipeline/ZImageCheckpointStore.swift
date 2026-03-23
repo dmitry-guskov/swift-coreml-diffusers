@@ -15,7 +15,7 @@ struct ZImageCheckpointSet: Identifiable, Codable, Hashable {
     var vaeDecoderModelName: String
     var embeddingsFileName: String
 
-    static let defaultTransformerStageNames: [String] = (0..<7).map {
+    static let defaultTransformerStageNames: [String] = (0..<32).map {
         "ZImageTurbo_TransformerBackbone_stage\($0).mlmodelc"
     }
 

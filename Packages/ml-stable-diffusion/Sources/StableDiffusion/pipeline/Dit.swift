@@ -9,7 +9,7 @@ import Foundation
 import CoreML
 
 /// Context passed from the pipeline to enable per-stage tensor dumps.
-@available(iOS 17.0, macOS 14.0, *)
+@available(iOS 18.0, macOS 14.0, *)
 public struct DitDebugContext {
     public let stagesDirectory: URL
     public let stepIndex: Int
@@ -26,10 +26,11 @@ public struct DitDebugContext {
 
 /// DiT (Diffusion Transformer) noise prediction model for Z-Image
 ///
-/// Supports stagewise execution where each stage has a different I/O contract:
-///   - stage 0:  inputs `latents`, `timestep`, `cap_feats`  →  output `hidden_tokens`
-///   - stage 1‒4: inputs `hidden_tokens`, `timestep`, `cap_feats`  →  output `hidden_tokens`
-///   - stage 5:  inputs `hidden_tokens`, `timestep`, `cap_feats`  →  output final noise tensor
+/// Supports stagewise execution with a split preamble:
+///   - stage 0 (image preamble):   inputs `latents`, `timestep`  →  output `image_tokens`
+///   - stage 1 (caption preamble): inputs `cap_feats`            →  output `cap_tokens`
+///   - Swift concatenates image_tokens + cap_tokens along axis 1  →  `hidden_tokens`
+///   - stages 2‒N: inputs `hidden_tokens`, `timestep` [+ `lora_vec`, `lora_scale`]
 @available(iOS 18.0, macOS 14.0, *)
 public struct Dit: ResourceManaging {
 
@@ -39,6 +40,7 @@ public struct Dit: ResourceManaging {
         case missingOutputFeature(stageIndex: Int)
         case incompatibleHiddenTokens(stageIndex: Int, expected: [Int], actual: [Int])
         case incompatibleHiddenTokensDtype(stageIndex: Int, expected: MLMultiArrayDataType, actual: MLMultiArrayDataType)
+        case missingImageTokensForConcatenation
 
         public var errorDescription: String? {
             switch self {
@@ -52,13 +54,17 @@ public struct Dit: ResourceManaging {
                 return "Stage \(idx) hidden_tokens shape mismatch. Expected \(expected), got \(actual)."
             case .incompatibleHiddenTokensDtype(let idx, let expected, let actual):
                 return "Stage \(idx) hidden_tokens dtype mismatch. Expected \(expected), got \(actual)."
+            case .missingImageTokensForConcatenation:
+                return "image_tokens from stage 0 not available when concatenating after stage 1."
             }
         }
     }
 
     private static let loraInputs: Set<String> = ["lora_vec", "lora_scale"]
-    private static let stage0Inputs: Set<String> = ["latents", "timestep", "cap_feats"]
-    private static let stageNInputs: Set<String> = ["hidden_tokens", "timestep", "cap_feats"]
+    private static let stage0Inputs: Set<String> = ["latents", "timestep"]
+    private static let stage1Inputs: Set<String> = ["cap_feats"]
+    private static let stageNInputs: Set<String> = ["hidden_tokens", "timestep"]
+    private static let legacyStage0Inputs: Set<String> = ["latents", "timestep", "cap_feats"]
 
     // MARK: - Properties
 
@@ -120,8 +126,18 @@ public struct Dit: ResourceManaging {
     // MARK: - Validation
 
     private func expectedInputKeyVariants(for stageIndex: Int) -> [Set<String>] {
-        let base = stageIndex == 0 ? Self.stage0Inputs : Self.stageNInputs
-        return [base, base.union(Self.loraInputs)]
+        if models.count == 1 {
+            let base = Self.legacyStage0Inputs
+            return [base, base.union(Self.loraInputs)]
+        }
+        switch stageIndex {
+        case 0:
+            return [Self.stage0Inputs]
+        case 1:
+            return [Self.stage1Inputs]
+        default:
+            return [Self.stageNInputs, Self.stageNInputs.union(Self.loraInputs)]
+        }
     }
 
     private func modelExpectsLoRAInputs(_ model: MLModel) -> Bool {
@@ -228,16 +244,20 @@ public struct Dit: ResourceManaging {
 
     /// Runs predictions through all stages sequentially, piping outputs forward.
     ///
-    /// Stage 0 receives the original batch (`latents`, `timestep`, `cap_feats`).
-    /// Its single output tensor is mapped to `hidden_tokens` and merged with
-    /// `timestep` and `cap_feats` from the original batch for stages 1‒5.
-    /// Each stage is unloaded immediately after use when running multi-stage.
+    /// Split preamble (multi-stage, ≥ 12 stages):
+    ///   - Stage 0 (image preamble): receives `{latents, timestep}` → `image_tokens`
+    ///   - Stage 1 (caption preamble): receives `{cap_feats}` → `cap_tokens`
+    ///   - Swift concatenates `image_tokens + cap_tokens` along axis 1 → `hidden_tokens`
+    ///   - Stages 2‒N: receive `{hidden_tokens, timestep}` [+ LoRA] → `hidden_tokens`
+    ///
+    /// Legacy single-model mode passes the full input dict unchanged.
     func predictions(
         from batch: MLBatchProvider,
         loraInputProvider: ZImageLoRAInputProvider? = nil,
         debugContext: DitDebugContext? = nil
     ) throws -> MLBatchProvider {
         let shouldUnload = unloadStagesAfterUse
+        let isMultiStage = models.count > 1
 
         let originalInputs = batch.arrayOfFeatureValueDictionaries
         var accumulated: [[String: MLFeatureValue]] = originalInputs
@@ -252,26 +272,35 @@ public struct Dit: ResourceManaging {
                         try validateSingleOutput(for: model, stageIndex: stageIndex)
 
                         let inputBatch = MLArrayBatchProvider(array: try accumulated.map { entry in
-                            var prepared = entry
-                            if modelExpectsLoRAInputs(model) {
-                                let provider: ZImageLoRAInputProvider
-                                if let loraInputProvider {
-                                    provider = loraInputProvider
-                                } else if let zeroLoRAInputProvider {
-                                    provider = zeroLoRAInputProvider
-                                } else {
-                                    let created = try ZImageLoRAInputProvider(loraURL: nil, scale: 0)
-                                    zeroLoRAInputProvider = created
-                                    provider = created
+                            var prepared: [String: MLFeatureValue]
+
+                            if isMultiStage && stageIndex == 0 {
+                                prepared = entry.filter { Self.stage0Inputs.contains($0.key) }
+                            } else if isMultiStage && stageIndex == 1 {
+                                prepared = entry.filter { Self.stage1Inputs.contains($0.key) }
+                            } else {
+                                prepared = entry
+                                if modelExpectsLoRAInputs(model) {
+                                    let provider: ZImageLoRAInputProvider
+                                    if let loraInputProvider {
+                                        provider = loraInputProvider
+                                    } else if let zeroLoRAInputProvider {
+                                        provider = zeroLoRAInputProvider
+                                    } else {
+                                        let created = try ZImageLoRAInputProvider(loraURL: nil, scale: 0)
+                                        zeroLoRAInputProvider = created
+                                        provider = created
+                                    }
+                                    let features = try provider.featureValues(for: stageIndex)
+                                    prepared["lora_vec"] = features.vector
+                                    prepared["lora_scale"] = features.scale
                                 }
-                                let features = try provider.featureValues(for: stageIndex)
-                                prepared["lora_vec"] = features.vector
-                                prepared["lora_scale"] = features.scale
                             }
+
                             return try MLDictionaryFeatureProvider(dictionary: prepared)
                         })
 
-                        if stageIndex > 0, let htDesc = model.modelDescription.inputDescriptionsByName["hidden_tokens"] {
+                        if stageIndex >= 2, let htDesc = model.modelDescription.inputDescriptionsByName["hidden_tokens"] {
                             for entry in accumulated {
                                 if let ht = entry["hidden_tokens"]?.multiArrayValue, let constraint = htDesc.multiArrayConstraint {
                                     let expectedShape = constraint.shape.map(\.intValue)
@@ -281,7 +310,7 @@ public struct Dit: ResourceManaging {
                                         throw Error.incompatibleHiddenTokens(stageIndex: stageIndex, expected: expectedShape, actual: actualShape)
                                     }
                                     if constraint.dataType != ht.dataType {
-                                        throw Error.incompatibleHiddenTokensDtype(stageIndex: stageIndex, expected: constraint.dataType, actual: ht.dataType)
+                                        print("[Dit] Stage \(stageIndex) hidden_tokens dtype mismatch: model expects \(constraint.dataType.rawValue), got \(ht.dataType.rawValue) — CoreML will auto-cast")
                                     }
                                 }
                             }
@@ -318,9 +347,10 @@ public struct Dit: ResourceManaging {
                     if let ma = outputValue.multiArrayValue {
                         let shape = ma.shape.map(\.intValue)
                         print("[Dit] Stage \(stageIndex) output: key='\(outputKey)' dtype=\(ma.dataType.rawValue) shape=\(shape)")
+                        let statsArray = (ma.dataType == .float32) ? ma : MLMultiArray(concatenating: [ma], axis: 0, dataType: .float32)
                         var finiteCount = 0, nanCount = 0, infCount = 0
-                        let ptr = ma.dataPointer.bindMemory(to: Float32.self, capacity: ma.count)
-                        for idx in 0..<ma.count {
+                        let ptr = statsArray.dataPointer.bindMemory(to: Float32.self, capacity: statsArray.count)
+                        for idx in 0..<statsArray.count {
                             let v = ptr[idx]
                             if v.isNaN { nanCount += 1 }
                             else if !v.isFinite { infCount += 1 }
@@ -334,14 +364,26 @@ public struct Dit: ResourceManaging {
                     }
 
                     var next = prev
-                    if let ma = outputValue.multiArrayValue, ma.dataType != .float32 {
-                        print("[Dit] Stage \(stageIndex) output is \(ma.dataType.rawValue), casting to float32")
-                        let fp32 = MLMultiArray(concatenating: [ma], axis: 0, dataType: .float32)
-                        next["hidden_tokens"] = MLFeatureValue(multiArray: fp32)
+
+                    if isMultiStage && stageIndex == 0 {
+                        next["image_tokens"] = outputValue
+                        next.removeValue(forKey: "latents")
+                    } else if isMultiStage && stageIndex == 1 {
+                        guard let imageTokens = next["image_tokens"]?.multiArrayValue,
+                              let capTokens = outputValue.multiArrayValue else {
+                            throw Error.missingImageTokensForConcatenation
+                        }
+                        let hidden = MLMultiArray(concatenating: [imageTokens, capTokens], axis: 1, dataType: imageTokens.dataType)
+                        print("[Dit] Concatenated image_tokens + cap_tokens → hidden_tokens: shape=\(hidden.shape.map(\.intValue)) dtype=\(hidden.dataType.rawValue)")
+                        next["hidden_tokens"] = MLFeatureValue(multiArray: hidden)
+                        next.removeValue(forKey: "image_tokens")
+                        next.removeValue(forKey: "cap_feats")
                     } else {
                         next["hidden_tokens"] = outputValue
+                        next.removeValue(forKey: "latents")
+                        next.removeValue(forKey: "cap_feats")
                     }
-                    next.removeValue(forKey: "latents")
+
                     return next
                 }
             } catch {

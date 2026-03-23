@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import StableDiffusion
 import UniformTypeIdentifiers
 
 private enum MacPathPickerTarget: Equatable {
@@ -61,6 +62,7 @@ struct ControlsView: View {
     @State private var pendingPathPicker: MacPathPickerTarget?
 
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 12) {
             Label("ZImage Checkpoint Test", systemImage: "cpu")
                 .font(.headline)
@@ -131,10 +133,6 @@ struct ControlsView: View {
             }
 
             runConfigurationSection
-            PromptTextField(text: $generation.positivePrompt, isPositivePrompt: true, model: .constant("zimage"))
-                .onChange(of: generation.positivePrompt) { _, prompt in
-                    Settings.shared.prompt = prompt
-                }
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -199,7 +197,7 @@ struct ControlsView: View {
                 Text(initialLatentStatusText())
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("Expected format: raw Float32 .bin, shape [1,16,64,64].")
+                Text("Expected format: raw Float32 .bin, shape \(ZImagePipeline.expectedLatentShape).")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("Resolved Init Latent Path: \(generation.initialLatentFileURL?.path ?? "Not set")")
@@ -252,6 +250,7 @@ struct ControlsView: View {
             StatusView(pipelineState: $pipelineState)
         }
         .padding()
+        }
         .onAppear {
             guard !bootstrapDone else { return }
             bootstrapDone = true
@@ -441,10 +440,10 @@ struct ControlsView: View {
             Text("CFG: \(String(format: "%.2f", generation.guidanceScale))")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Output: 512 x 512 (fixed)")
+            Text("Output: \(ZImagePipeline.expectedLatentShape[3] * ZImagePipeline.vaeScaleFactor) x \(ZImagePipeline.expectedLatentShape[2] * ZImagePipeline.vaeScaleFactor) (fixed)")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("Latents: channels=16, size=64 x 64 (fixed)")
+            Text("Latents: channels=\(ZImagePipeline.expectedLatentShape[1]), size=\(ZImagePipeline.expectedLatentShape[3]) x \(ZImagePipeline.expectedLatentShape[2]) (fixed)")
                 .font(.caption)
                 .foregroundColor(.secondary)
             Text("Steps: \(Int(generation.steps)) | Seed: \(generation.seed)")

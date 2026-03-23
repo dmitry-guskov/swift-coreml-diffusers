@@ -108,7 +108,7 @@ final class ZImagePipelineLoader {
     private func validateLoRAWiringIfNeeded() throws {
         guard config.loraURL != nil else { return }
 
-        for (stageIndex, stageURL) in config.transformerStageURLs.enumerated() where stageIndex > 0 {
+        for (stageIndex, stageURL) in config.transformerStageURLs.enumerated() where stageIndex > 1 {
             let milURL = stageURL.appendingPathComponent("model.mil", isDirectory: false)
             guard let mil = try? String(contentsOf: milURL, encoding: .utf8) else {
                 continue

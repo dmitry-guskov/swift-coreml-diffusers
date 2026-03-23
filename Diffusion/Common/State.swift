@@ -143,7 +143,7 @@ class GenerationContext: ObservableObject {
     @Published var variationBaseNoiseData: Data? = nil
     @Published var variationBaseNoiseShape: [Int]? = nil
 
-    @Published var computeUnits: ComputeUnits = Settings.shared.userSelectedComputeUnits ?? .cpuOnly
+    @Published var computeUnits: ComputeUnits = Settings.shared.userSelectedComputeUnits ?? .cpuAndNeuralEngine
     @Published var transformerModelPath: String? = Settings.shared.transformerModelPath
     @Published var vaeDecoderPath: String? = Settings.shared.vaeDecoderPath
     @Published var externalEmbeddingsPath: String? = Settings.shared.externalEmbeddingsPath
@@ -157,7 +157,7 @@ class GenerationContext: ObservableObject {
     private var generationProgressLastStep: Int?
     private var generationProgressSmoothedStepSeconds: Double?
     private let etaSmoothingAlpha = 0.25
-    private let initialLatentShapeContract = [1, 16, 64, 64]
+    private var initialLatentShapeContract: [Int] { ZImagePipeline.expectedLatentShape }
 
     init() {
         #if os(iOS)

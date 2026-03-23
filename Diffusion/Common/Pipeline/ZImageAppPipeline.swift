@@ -89,12 +89,12 @@ final class ZImageAppPipeline: AppPipeline {
         config.initialLatentData = initialNoiseData
         config.initialLatentShape = initialNoiseShape
         let debugRunDirectory = try makeDebugRunDirectory(seed: seed)
-        config.debugEnabled = true
+        config.debugEnabled = false
         config.debugOutputDirectory = debugRunDirectory
-        config.debugSaveInitialLatent = true    
-        config.debugSaveDitOutputEachStep = true
-        config.debugSaveLatentAfterSchedulerEachStep = true
-        config.debugSaveStageOutputs = true
+        config.debugSaveInitialLatent = false    
+        config.debugSaveDitOutputEachStep = false
+        config.debugSaveLatentAfterSchedulerEachStep = false
+        config.debugSaveStageOutputs = false
         config.debugSkipVaeDecode = false
         // print("[ZImageDebug] Saving debug tensors to: \(debugRunDirectory.path)")
 

@@ -62,7 +62,7 @@ public struct ZImageConfiguration {
     /// Optional injected initial latent tensor bytes (Float32, row-major)
     public var initialLatentData: Data? = nil
 
-    /// Shape for `initialLatentData` (must match [1, 16, 64, 64])
+    /// Shape for `initialLatentData` (must match `ZImagePipeline.expectedLatentShape`)
     public var initialLatentShape: [Int]? = nil
 
     /// Enable writing debug checkpoint tensors during sampling
@@ -156,11 +156,12 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         }
     }
 
-    private let expectedLatentShape = [1, 16, 160, 96]
+    public static let expectedLatentShape = [1, 16, 160, 96] //[1, 16, 64, 64]//[1, 16, 160, 96] 
+    public static let vaeScaleFactor = 8
     private let expectedEmbeddingShape = [1, 500, 2560]
     private var expectedEmbeddingFloatCount: Int { expectedEmbeddingShape[0] * expectedEmbeddingShape[1] * expectedEmbeddingShape[2] }
     private var expectedEmbeddingByteCount: Int { expectedEmbeddingFloatCount * MemoryLayout<Float32>.size }
-    private var expectedLatentFloatCount: Int { expectedLatentShape.reduce(1, *) }
+    private var expectedLatentFloatCount: Int { Self.expectedLatentShape.reduce(1, *) }
     private var expectedLatentByteCount: Int { expectedLatentFloatCount * MemoryLayout<Float32>.size }
 
     var dit: Dit
@@ -242,6 +243,7 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         configuration config: ZImageConfiguration,
         progressHandler: (ZImageProgress) -> Bool = { _ in true }
     ) throws -> [CGImage?] {
+        let generationStart = CFAbsoluteTimeGetCurrent()
         logMemory("ZImagePipeline.generateImages.start")
         let debugDirectory = try prepareDebugDirectoryIfNeeded(config: config)
 
@@ -282,6 +284,7 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
 
         // De-noising loop with autoreleasepool for memory optimization
         let timeSteps: [Int] = scheduler.calculateTimesteps(strength: nil)
+        let denoisingStart = CFAbsoluteTimeGetCurrent()
         for (step, t) in timeSteps.enumerated() {
             let shouldContinue: Bool = try autoreleasepool {
                 if config.debugEnabled {
@@ -377,6 +380,8 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
             }
         }
 
+        let denoisingElapsed = CFAbsoluteTimeGetCurrent() - denoisingStart
+        print("[ZImagePipeline] Denoising: \(String(format: "%.2f", denoisingElapsed))s (\(timeSteps.count) steps)")
         logMemory("ZImagePipeline.generateImages.afterDenoisingLoop")
         
         if reduceMemory {
@@ -399,8 +404,14 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
 
         // Decode the final latent to an image
         logMemory("ZImagePipeline.generateImages.beforeDecode")
+        let vaeStart = CFAbsoluteTimeGetCurrent()
         let images = try decodeToImages([denoisedLatent], configuration: config)
+        let vaeElapsed = CFAbsoluteTimeGetCurrent() - vaeStart
         logMemory("ZImagePipeline.generateImages.afterDecode")
+        print("[ZImagePipeline] VAE decode: \(String(format: "%.2f", vaeElapsed))s")
+
+        let totalElapsed = CFAbsoluteTimeGetCurrent() - generationStart
+        print("[ZImagePipeline] Total generation: \(String(format: "%.2f", totalElapsed))s (denoising + VAE)")
         return images
     }
 
@@ -415,8 +426,8 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
         }
         if let initialLatentData = config.initialLatentData,
            let initialLatentShape = config.initialLatentShape {
-            guard initialLatentShape == expectedLatentShape else {
-                throw Error.invalidInitialLatentShape(actual: initialLatentShape, expected: expectedLatentShape)
+            guard initialLatentShape == Self.expectedLatentShape else {
+                throw Error.invalidInitialLatentShape(actual: initialLatentShape, expected: Self.expectedLatentShape)
             }
             guard initialLatentData.count == expectedLatentByteCount else {
                 throw Error.invalidInitialLatentByteCount(actual: initialLatentData.count, expected: expectedLatentByteCount)
@@ -424,12 +435,12 @@ public struct ZImagePipeline: ZImagePipelineProtocol {
             let floats: [Float32] = initialLatentData.withUnsafeBytes { buffer in
                 Array(buffer.bindMemory(to: Float32.self))
             }
-            return MLShapedArray<Float32>(scalars: floats, shape: expectedLatentShape)
+            return MLShapedArray<Float32>(scalars: floats, shape: Self.expectedLatentShape)
         }
 
         // Use expected shape directly to avoid triggering early model load
         // The model shape validation happens lazily during first prediction
-        let sampleShape = expectedLatentShape
+        let sampleShape = Self.expectedLatentShape
 
         let stdev = scheduler.initNoiseSigma
         var random = randomSource(from: config.rngType, seed: config.seed)
